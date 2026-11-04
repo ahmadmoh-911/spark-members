@@ -38,9 +38,7 @@ function CourseList({ onOpen, toast }) {
   const [err, setErr] = useState('');
   const [adding, setAdding] = useState(false);
   const load = useCallback(async () => {
-    let q = supabase.from('courses').select('*').order('start_date', { ascending: false });
-    if (!isAdmin) q = q.ilike('trainer_email', user.email);
-    const { data, error } = await q;
+    const { data, error } = await supabase.rpc('panel_courses');
     if (error) setErr(friendlyError(error)); else setRows(data);
   }, [isAdmin, user]);
   useEffect(() => { load(); }, [load]);
@@ -141,6 +139,7 @@ function CourseManage({ c: initial, onBack, toast }) {
   const [emails, setEmails] = useState('');
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [welcome, setWelcome] = useState(null);
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc('course_enrollments', { p_course: c.id });
     if (error) setErr(friendlyError(error)); else setRows(data);
@@ -157,8 +156,9 @@ function CourseManage({ c: initial, onBack, toast }) {
     const have = new Set((rows || []).map((r) => r.email));
     const fresh = list.filter((x) => !have.has(x));
     if (!fresh.length) { toast('كلهم مضافين أصلاً'); return; }
-    await run(supabase.from('enrollments').insert(fresh.map((email) => ({ course_id: c.id, email }))), `انضاف ${fresh.length}`);
-    setEmails('');
+    const { error } = await supabase.from('enrollments').insert(fresh.map((email) => ({ course_id: c.id, email })));
+    if (error) { toast(friendlyError(error)); return; }
+    setEmails(''); load(); setWelcome(fresh);
   };
   const issue = (r) => {
     const code = `SPK-C-${new Date().getFullYear()}-${String(c.id).padStart(2, '0')}${String(r.id).padStart(4, '0')}`;
@@ -202,15 +202,18 @@ function CourseManage({ c: initial, onBack, toast }) {
                   <Photo url={r.photo_url} id={r.student_id || r.email} />
                   <span style={{ minWidth: 0 }}>
                     <b style={{ display: 'block' }}>{r.full_name || 'لسا ما سجّل'}</b>
-                    <span dir="ltr" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.email}</span>
+                    {r.email && <span dir="ltr" style={{ display: 'block', fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.email}</span>}
+                    {r.whatsapp && <span dir="ltr" style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}>واتساب {r.whatsapp}</span>}
                     {isAdmin && r.certificate_code && <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)' }}><span dir="ltr">{r.certificate_code}</span> · {r.tier ? TIER[r.tier] : 'بدون تصنيف'}</span>}
                   </span>
                 </div>
                 <div className="acts">
                   <Stars value={r.trainer_stars} disabled={!r.student_id}
-                    onPick={(n) => run(supabase.from('enrollments').update({ trainer_stars: n }).eq('id', r.id), 'انحفظ التقييم')} />
+                    onPick={(n) => run(supabase.rpc('rate_enrollment', { p_enrollment: r.id, p_stars: n }), 'انحفظ التقييم')} />
                   {isAdmin && (
-                    <span style={{ display: 'flex', gap: 2 }}>
+                    <span style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: 'var(--blue)' }} href={mailLink(c, [r.email], r.full_name)}>إيميل قبول</a>
+                      {r.whatsapp && <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: '#1E9E52' }} href={waLink(c, r.whatsapp, r.full_name)} target="_blank" rel="noopener">واتساب</a>}
                       {r.student_id && (r.certificate_code
                         ? <button className="link" onClick={() => run(supabase.from('enrollments').update({ certificate_code: null }).eq('id', r.id), 'انلغت الشهادة')}>إلغاء الشهادة</button>
                         : <button className="link" style={{ color: 'var(--blue)' }} onClick={() => (ended ? issue(r) : setConfirm({ text: 'الدورة لسا ما انتهت. تصدر الشهادة هلأ؟', go: () => issue(r) }))}>إصدار شهادة</button>)}
@@ -226,10 +229,39 @@ function CourseManage({ c: initial, onBack, toast }) {
         {!isAdmin && <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>تقييمك بيدخل بحساب تصنيف الشهادة، وما بيبيّن للناس كرقم.</p>}
       </section>
 
+      {welcome && (
+        <Sheet title="انضافوا للدورة" onClose={() => setWelcome(null)}>
+          <p style={{ margin: '0 0 10px' }}>انضاف {welcome.length} للدورة. ابعتلهم رسالة القبول من إيميلك (بتوصلهم كلهم كنسخة مخفية، وما حدا بيشوف إيميل التاني):</p>
+          <a className="cta press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none' }} href={mailLink(c, welcome)} onClick={() => setTimeout(() => setWelcome(null), 300)}>افتح رسالة القبول</a>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>رسالة الواتساب بتظهر جنب كل طالب بعد ما يسجّل ويضيف رقمه.</p>
+        </Sheet>
+      )}
       {editing && <CourseForm c={c} onClose={() => setEditing(false)} onSaved={(row) => { setEditing(false); setC({ ...c, ...row }); toast('انحفظت'); }} />}
       {confirm && <Confirm text={confirm.text} onNo={() => setConfirm(null)} onYes={async () => { const g = confirm.go; setConfirm(null); await g(); }} />}
     </>
   );
+}
+
+// acceptance message, sent from the admin's own mail app / WhatsApp
+const SITE = () => location.origin + import.meta.env.BASE_URL;
+const welcomeText = (c, name) => `مرحبا${name ? ' ' + name : ''}،
+
+يسعدنا نبلغك إنه انقبلت بدورة «${c.title}» في سبارك للابتكار والإبداع${c.start_date ? `، وبتبلّش ${c.start_date}` : ''}.
+
+فعّل عضويتك من هون بنفس حساب Gmail اللي سجّلت فيه:
+${SITE()}
+
+أهلاً فيك بمجتمع سبارك 🌟`;
+function mailLink(c, emails, name) {
+  const to = emails.length === 1 ? emails[0] : '';
+  const bcc = emails.length > 1 ? `bcc=${encodeURIComponent(emails.join(','))}&` : '';
+  return `mailto:${to}?${bcc}subject=${encodeURIComponent(`قبولك بدورة ${c.title} | سبارك`)}&body=${encodeURIComponent(welcomeText(c, name))}`;
+}
+function waLink(c, phone, name) {
+  let n = phone.replace(/[^0-9]/g, '');
+  if (n.startsWith('00')) n = n.slice(2);
+  else if (n.startsWith('0')) n = '970' + n.slice(1);
+  return `https://wa.me/${n}?text=${encodeURIComponent(welcomeText(c, name))}`;
 }
 
 function Confirm({ text, onYes, onNo }) {

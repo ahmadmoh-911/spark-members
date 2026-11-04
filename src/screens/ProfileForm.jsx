@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, membershipNo, supabase, uploadAvatar } from '../lib/supabase.js';
 import { Photo } from '../ui.jsx';
@@ -18,6 +18,10 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
   const [file, setFile] = useState(null);
   const [skills, setSkills] = useState(profile?.skills || []);
   const [goals, setGoals] = useState(profile?.goals || []);
+  const [wa, setWa] = useState('');
+  useEffect(() => {
+    if (user) supabase.from('private_contacts').select('whatsapp').eq('user_id', user.id).maybeSingle().then(({ data }) => setWa(data?.whatsapp || ''));
+  }, [user]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -32,6 +36,8 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
   const save = async (e) => {
     e.preventDefault();
     if (!f.full_name.trim()) { setErr('اكتب اسمك.'); return; }
+    const phone = wa.trim().replace(/[^0-9+ ]/g, '');
+    if (phone && !/^\+?[0-9 ]{7,20}$/.test(phone)) { setErr('رقم الواتساب مش صحيح.'); return; }
     setBusy(true); setErr('');
     try {
       let photo_url = photo || null;
@@ -42,6 +48,10 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
         photo_url, skills, goals, onboarded: true,
       }).eq('id', user.id);
       if (error) throw error;
+      const pc = phone
+        ? await supabase.from('private_contacts').upsert({ user_id: user.id, whatsapp: phone, updated_at: new Date().toISOString() })
+        : await supabase.from('private_contacts').delete().eq('user_id', user.id);
+      if (pc.error) throw pc.error;
       await refresh();
       onDone?.();
     } catch (x) { setErr(friendlyError(x)); setBusy(false); }
@@ -64,6 +74,8 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
       <label className="fld">التخصص<input value={f.specialty} onChange={set('specialty')} placeholder="مثلاً: تصميم واجهات" maxLength={60} /></label>
       <label className="fld">جملة عنك<input value={f.tagline} onChange={set('tagline')} placeholder="بتظهر تحت اسمك بكرت الطالب" maxLength={90} /></label>
       <label className="fld">نبذة<textarea rows={3} value={f.about} onChange={set('about')} maxLength={500} /></label>
+      <label className="fld">رقم الواتساب (اختياري)<input type="tel" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+970 59 000 0000" maxLength={20} />
+        <span className="hint">مخفي عن الكل، الإدارة بس بتشوفه عشان تتواصل معك.</span></label>
       <ListInput label="المهارات" items={skills} setItems={setSkills} chips max={15} maxLen={40} placeholder="مثلاً: Figma" />
       <ListInput label="أهدافي مع مجتمع سبارك" items={goals} setItems={setGoals} max={6} maxLen={140} placeholder="اكتب هدف واضغط أضف" />
       {err && <div className="err" role="alert">{err}</div>}
