@@ -11,6 +11,24 @@ import { Sheet, Toast } from '../sheet.jsx';
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 const ROLE = { admin: 'إدارة', trainer: 'مدرب' };
 
+const isPdf = (u = '') => /\.pdf($|\?)/i.test(u);
+// certificate file thumbnail: image preview, PDF badge, or the Spark logo when there's no file
+function CertThumb({ c, onOpen }) {
+  if (!c.certificate_url) return <span className="seal"><img src={LOGO_DARK} alt="" /></span>;
+  if (isPdf(c.certificate_url)) {
+    return (
+      <a className="seal press" href={c.certificate_url} target="_blank" rel="noopener" aria-label={`افتح شهادة ${c.title} (PDF)`} style={{ textDecoration: 'none', color: '#D64535', fontWeight: 700, fontSize: 13, flexDirection: 'column' }}>
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></svg>PDF
+      </a>
+    );
+  }
+  return (
+    <button className="seal press" onClick={onOpen} aria-label={`اعرض شهادة ${c.title}`} style={{ border: 0, padding: 0, overflow: 'hidden', cursor: 'zoom-in' }}>
+      <img src={c.certificate_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </button>
+  );
+}
+
 export function BackBtn({ to = 'students' }) {
   return (
     <button className="back glass press" onClick={() => (history.length > 1 ? history.back() : go(to))}>
@@ -27,6 +45,7 @@ export default function Member({ id }) {
   const [editing, setEditing] = useState(false);
   const [tick, setTick] = useState(0);
   const [msg, setMsg] = useState('');
+  const [doc, setDoc] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -117,7 +136,7 @@ export default function Member({ id }) {
               {certs.map((c) => (
                 <div key={c.course_id} className="cert">
                   <div className="cert-top">
-                    <span className="seal"><img src={LOGO_DARK} alt="" /></span>
+                    <CertThumb c={c} onOpen={() => setDoc(c)} />
                     <div style={{ minWidth: 0 }}>
                       <b>{c.title}</b>
                       {c.category && <span className="code" style={{ direction: 'rtl' }}>{c.category}</span>}
@@ -142,6 +161,12 @@ export default function Member({ id }) {
       {editing && (
         <Sheet title="تعديل العضوية" onClose={() => setEditing(false)}>
           {(close) => <ProfileForm mode="edit" onDone={() => { close(); setMsg('انحفظت التعديلات'); }} />}
+        </Sheet>
+      )}
+      {doc && (
+        <Sheet title={`شهادة ${doc.title}`} onClose={() => setDoc(null)}>
+          <img src={doc.certificate_url} alt={`شهادة ${doc.title}`} style={{ width: '100%', borderRadius: 16, display: 'block' }} />
+          <a className="ghost press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none', color: 'inherit' }} href={doc.certificate_url} target="_blank" rel="noopener">افتح بحجم كامل</a>
         </Sheet>
       )}
       <Toast msg={msg} onDone={() => setMsg('')} />

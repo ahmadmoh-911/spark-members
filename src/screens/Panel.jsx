@@ -160,10 +160,7 @@ function CourseManage({ c: initial, onBack, toast }) {
     if (error) { toast(friendlyError(error)); return; }
     setEmails(''); load(); setWelcome(fresh);
   };
-  const issue = (r) => {
-    const code = `SPK-C-${new Date().getFullYear()}-${String(c.id).padStart(2, '0')}${String(r.id).padStart(4, '0')}`;
-    run(supabase.from('enrollments').update({ certificate_code: code }).eq('id', r.id), 'انصدرت الشهادة');
-  };
+  const [cert, setCert] = useState(null);
   const ended = courseStatus(c) === 'انتهت';
 
   return (
@@ -214,9 +211,9 @@ function CourseManage({ c: initial, onBack, toast }) {
                     <span style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                       <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: 'var(--blue)' }} href={mailLink(c, [r.email], r.full_name)}>إيميل قبول</a>
                       {r.whatsapp && <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: '#1E9E52' }} href={waLink(c, r.whatsapp, r.full_name)} target="_blank" rel="noopener">واتساب</a>}
-                      {r.student_id && (r.certificate_code
-                        ? <button className="link" onClick={() => run(supabase.from('enrollments').update({ certificate_code: null }).eq('id', r.id), 'انلغت الشهادة')}>إلغاء الشهادة</button>
-                        : <button className="link" style={{ color: 'var(--blue)' }} onClick={() => (ended ? issue(r) : setConfirm({ text: 'الدورة لسا ما انتهت. تصدر الشهادة هلأ؟', go: () => issue(r) }))}>إصدار شهادة</button>)}
+                      {r.student_id && (
+                        <button className="link" style={{ color: 'var(--blue)' }} onClick={() => setCert(r)}>{r.certificate_code ? 'الشهادة' : 'إصدار شهادة'}</button>
+                      )}
                       <button className="link" style={{ color: '#D64535' }} onClick={() => setConfirm({ text: `إزالة ${r.full_name || r.email} من الدورة؟`, go: () => run(supabase.from('enrollments').delete().eq('id', r.id), 'انشال من الدورة') })}>إزالة</button>
                     </span>
                   )}
@@ -237,9 +234,65 @@ function CourseManage({ c: initial, onBack, toast }) {
           <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>رسالة الواتساب بتظهر جنب كل طالب بعد ما يسجّل ويضيف رقمه.</p>
         </Sheet>
       )}
+      {cert && <CertSheet c={c} r={cert} ended={ended} onClose={() => setCert(null)} onDone={(m) => { setCert(null); toast(m); load(); }} />}
       {editing && <CourseForm c={c} onClose={() => setEditing(false)} onSaved={(row) => { setEditing(false); setC({ ...c, ...row }); toast('انحفظت'); }} />}
       {confirm && <Confirm text={confirm.text} onNo={() => setConfirm(null)} onYes={async () => { const g = confirm.go; setConfirm(null); await g(); }} />}
     </>
+  );
+}
+
+// issue a certificate, attach / replace / remove its file (image or PDF), or revoke it
+function CertSheet({ c, r, ended, onClose, onDone }) {
+  const { user } = useAuth();
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [revoke, setRevoke] = useState(false);
+  const issued = !!r.certificate_code;
+  const pick = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (!/^image\/(jpeg|png|webp|gif)$|^application\/pdf$/.test(f.type)) { setErr('الملف لازم يكون صورة (JPG, PNG, WEBP) أو PDF.'); return; }
+    if (f.size > 50 * 1024 * 1024) { setErr('الملف أكبر من 50 ميغا.'); return; }
+    setErr(''); setFile(f);
+  };
+  const save = async (patch, msg) => {
+    setBusy(true); setErr('');
+    try {
+      if (file) patch.certificate_url = await uploadMedia(user.id, file, 'cert');
+      const { error } = await supabase.from('enrollments').update(patch).eq('id', r.id);
+      if (error) throw error;
+      onDone(msg);
+    } catch (x) { setErr(friendlyError(x)); setBusy(false); }
+  };
+  const code = `SPK-C-${new Date().getFullYear()}-${String(c.id).padStart(2, '0')}${String(r.id).padStart(4, '0')}`;
+  return (
+    <Sheet title={issued ? 'شهادة الطالب' : 'إصدار شهادة'} onClose={onClose}>
+      <p style={{ margin: '0 0 8px' }}><b>{r.full_name}</b> · {c.title}</p>
+      {issued && <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--muted)' }}>رقم الشهادة <span dir="ltr">{r.certificate_code}</span> · التصنيف الحالي: {r.tier ? TIER[r.tier] : 'بدون تصنيف'}</p>}
+      {!ended && !issued && <div className="hidden-note" style={{ marginTop: 0 }}>الدورة لسا ما انتهت.</div>}
+      {r.trainer_stars == null && <div className="hidden-note">المدرب لسا ما قيّم هالطالب بالنجوم، فتقييمه بينحسب صفر لحد ما يقيّمه.</div>}
+      <div className="pick-photo" style={{ marginTop: 12 }}>
+        <label className="pbtn press" style={{ cursor: 'pointer' }}>
+          {file ? 'غيّر الملف' : r.certificate_url ? 'استبدل ملف الشهادة' : 'أرفق صورة أو PDF الشهادة'}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" className="sr" onChange={pick} />
+        </label>
+        {file && <span style={{ fontSize: 13, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} dir="ltr">{file.name}</span>}
+        {!file && r.certificate_url && <a className="link" href={r.certificate_url} target="_blank" rel="noopener" style={{ display: 'inline-grid', placeItems: 'center', color: 'var(--blue)' }}>اعرض الملف</a>}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>اختياري. إذا ما أرفقت ملف، بيظهر شعار سبارك مكانه.</p>
+      {err && <div className="err" role="alert">{err}</div>}
+      {!issued
+        ? <button className="cta press" disabled={busy} onClick={() => save({ certificate_code: code }, 'انصدرت الشهادة')}>{busy ? 'جارٍ…' : 'أصدر الشهادة'}</button>
+        : (
+          <>
+            <button className="cta press" disabled={busy || !file} onClick={() => save({}, 'انحفظ ملف الشهادة')}>{busy ? 'جارٍ الرفع…' : 'احفظ الملف'}</button>
+            {r.certificate_url && !file && <button className="ghost press" disabled={busy} onClick={() => save({ certificate_url: null }, 'انشال ملف الشهادة')}>شيل الملف</button>}
+            {!revoke
+              ? <button className="ghost press" style={{ color: '#D64535' }} onClick={() => setRevoke(true)}>إلغاء الشهادة</button>
+              : <button className="cta press" style={{ background: '#D64535' }} disabled={busy} onClick={() => save({ certificate_code: null, certificate_url: null }, 'انلغت الشهادة')}>أكّد إلغاء الشهادة</button>}
+          </>
+        )}
+    </Sheet>
   );
 }
 
