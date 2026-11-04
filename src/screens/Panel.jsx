@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
-import { friendlyError, supabase } from '../lib/supabase.js';
+import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
 import { Photo, Spinner } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 import { courseStatus, coverStyle } from './Courses.jsx';
@@ -83,13 +83,7 @@ function CourseForm({ c, onClose, onSaved }) {
     setBusy(true); setErr('');
     try {
       let cover_url = c?.cover_url || null;
-      if (file) {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const path = `courses/cover-${Date.now()}.${ext}`;
-        const up = await supabase.storage.from('media').upload(path, file, { contentType: file.type });
-        if (up.error) throw up.error;
-        cover_url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
-      }
+      if (file) cover_url = await uploadMedia(user.id, file, 'course');
       const row = { title: f.title.trim(), category: f.category.trim() || null, description: f.description.trim() || null,
         trainer_email: te || null, start_date: f.start_date, end_date: f.end_date, cover_url };
       const { error } = c ? await supabase.from('courses').update(row).eq('id', c.id) : await supabase.from('courses').insert(row);
