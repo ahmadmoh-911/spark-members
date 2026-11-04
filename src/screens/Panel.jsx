@@ -231,8 +231,9 @@ function CourseManage({ c: initial, onBack, toast }) {
 
       {welcome && (
         <Sheet title="انضافوا للدورة" onClose={() => setWelcome(null)}>
-          <p style={{ margin: '0 0 10px' }}>انضاف {welcome.length} للدورة. ابعتلهم رسالة القبول من إيميلك (بتوصلهم كلهم كنسخة مخفية، وما حدا بيشوف إيميل التاني):</p>
+          <p style={{ margin: '0 0 10px' }}>انضاف {welcome.length} للدورة. بدك تبعتلهم رسالة قبول؟ (اختياري — بتوصلهم كنسخة مخفية، وما حدا بيشوف إيميل التاني)</p>
           <a className="cta press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none' }} href={mailLink(c, welcome)} onClick={() => setTimeout(() => setWelcome(null), 300)}>افتح رسالة القبول</a>
+          <button className="ghost press" onClick={() => setWelcome(null)}>بدون رسالة</button>
           <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>رسالة الواتساب بتظهر جنب كل طالب بعد ما يسجّل ويضيف رقمه.</p>
         </Sheet>
       )}

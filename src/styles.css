@@ -24,20 +24,8 @@
   --ease:cubic-bezier(.2,0,0,1); --spring:cubic-bezier(.34,1.56,.64,1);
   --logo-dark:block; --logo-light:none;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#09121F; --ink:#EEF3FB; --ink-2:#C6D0DF; --muted:#9AA6B8;
-  --glass:rgba(20,32,56,.55); --glass-strong:rgba(26,42,72,.86); --glass-line:rgba(255,255,255,.12);
-  --chip:rgba(255,255,255,.08); --line:rgba(255,255,255,.12);
-  --blue:#4F93E6; --blue-2:#78B0F2; --on-blue:#06101F;
-  --b1:rgba(45,123,216,.34); --b2:rgba(244,123,32,.26); --b3:rgba(75,180,84,.24); --b4:rgba(255,205,5,.20);
-  --shadow:0 10px 30px rgba(0,0,0,.35); --logo-dark:none; --logo-light:block; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#09121F; --ink:#EEF3FB; --ink-2:#C6D0DF; --muted:#9AA6B8;
-  --glass:rgba(20,32,56,.55); --glass-strong:rgba(26,42,72,.86); --glass-line:rgba(255,255,255,.12);
-  --chip:rgba(255,255,255,.08); --line:rgba(255,255,255,.12);
-  --blue:#4F93E6; --blue-2:#78B0F2; --on-blue:#06101F;
-  --b1:rgba(45,123,216,.34); --b2:rgba(244,123,32,.26); --b3:rgba(75,180,84,.24); --b4:rgba(255,205,5,.20);
-  --shadow:0 10px 30px rgba(0,0,0,.35); --logo-dark:none; --logo-light:block; color-scheme:dark}
+/* light theme only, even when the phone is in dark mode */
+:root{color-scheme:only light}
 
 *{box-sizing:border-box}
 html,body{min-height:100%}
