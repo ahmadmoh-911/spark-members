@@ -365,11 +365,14 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 .story .shade{animation-duration:.62s}
 /* person to person */
 .stage.zoomed-out{transform:scale(.16);opacity:0}
-.people{position:absolute;inset:0;pointer-events:none;z-index:1}
-.people .pp{position:absolute;top:50%;left:50%;margin:-52px 0 0 -40px;width:80px;display:grid;justify-items:center;gap:6px;color:#fff;font-size:13px;opacity:.55;transition:transform .36s cubic-bezier(.4,0,.2,1),opacity .36s}
-.people .pp .avatar{width:72px;height:72px}
-.people .pp .avatar .gap{background:#0b1a33}
+.people{position:fixed;z-index:3;pointer-events:none;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));height:124px;border-radius:28px;overflow:hidden;max-width:520px;margin:0 auto;box-shadow:0 18px 40px rgba(0,0,0,.25);background:rgba(255,255,255,.88);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%)}
+.people .pp{position:absolute;top:14px;left:50%;margin-left:-40px;width:80px;display:grid;justify-items:center;gap:4px;color:var(--ink);font-size:13px;opacity:.5;transition:transform .36s cubic-bezier(.4,0,.2,1),opacity .36s}
+.people .pp .avatar{width:68px;height:68px}
+.people .pp .avatar .gap{background:#fff}
 .people .pp.on{opacity:1}
-.people .pp b{font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,.4);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.people.out{animation:fade .3s ease both}
-.people.in{animation:fadeOut .36s ease forwards}
+.people .pp b{font-weight:600;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.people.out{animation:barUp .32s cubic-bezier(.2,.8,.2,1) both}
+.people.in{animation:barDown .38s ease forwards}
+@keyframes barUp{from{opacity:0;transform:translateY(40px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes barDown{to{opacity:0;transform:translateY(40px) scale(.96)}}
+.stage.zoomed-out{transform:translateY(32vh) scale(.14)}

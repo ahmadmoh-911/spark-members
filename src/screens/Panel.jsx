@@ -209,8 +209,6 @@ function CourseManage({ c: initial, onBack, toast }) {
                     onPick={(n) => run(supabase.rpc('rate_enrollment', { p_enrollment: r.id, p_stars: n }), 'انحفظ التقييم')} />
                   {isAdmin && (
                     <span style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: 'var(--blue)' }} href={mailLink(c, [r.email], r.full_name)}>إيميل قبول</a>
-                      {r.whatsapp && <a className="link" style={{ display: 'inline-grid', placeItems: 'center', textDecoration: 'none', color: '#1E9E52' }} href={waLink(c, r.whatsapp, r.full_name)} target="_blank" rel="noopener">واتساب</a>}
                       {r.student_id && (
                         <button className="link" style={{ color: 'var(--blue)' }} onClick={() => setCert(r)}>{r.certificate_code ? 'الشهادة' : 'إصدار شهادة'}</button>
                       )}
@@ -226,14 +224,7 @@ function CourseManage({ c: initial, onBack, toast }) {
         {!isAdmin && <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>تقييمك بيدخل بحساب تصنيف الشهادة، وما بيبيّن للناس كرقم.</p>}
       </section>
 
-      {welcome && (
-        <Sheet title="انضافوا للدورة" onClose={() => setWelcome(null)}>
-          <p style={{ margin: '0 0 10px' }}>انضاف {welcome.length} للدورة. بدك تبعتلهم رسالة قبول؟ (اختياري — بتوصلهم كنسخة مخفية، وما حدا بيشوف إيميل التاني)</p>
-          <a className="cta press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none' }} href={mailLink(c, welcome)} onClick={() => setTimeout(() => setWelcome(null), 300)}>افتح رسالة القبول</a>
-          <button className="ghost press" onClick={() => setWelcome(null)}>بدون رسالة</button>
-          <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 0' }}>رسالة الواتساب بتظهر جنب كل طالب بعد ما يسجّل ويضيف رقمه.</p>
-        </Sheet>
-      )}
+      {welcome && <Welcome c={c} emails={welcome} onClose={() => setWelcome(null)} />}
       {cert && <CertSheet c={c} r={cert} ended={ended} onClose={() => setCert(null)} onDone={(m) => { setCert(null); toast(m); load(); }} />}
       {editing && <CourseForm c={c} onClose={() => setEditing(false)} onSaved={(row) => { setEditing(false); setC({ ...c, ...row }); toast('انحفظت'); }} />}
       {confirm && <Confirm text={confirm.text} onNo={() => setConfirm(null)} onYes={async () => { const g = confirm.go; setConfirm(null); await g(); }} />}
@@ -306,16 +297,26 @@ const welcomeText = (c, name) => `مرحبا${name ? ' ' + name : ''}،
 ${SITE()}
 
 أهلاً فيك بمجتمع سبارك 🌟`;
-function mailLink(c, emails, name) {
-  const to = emails.length === 1 ? emails[0] : '';
-  const bcc = emails.length > 1 ? `bcc=${encodeURIComponent(emails.join(','))}&` : '';
-  return `mailto:${to}?${bcc}subject=${encodeURIComponent(`قبولك بدورة ${c.title} | سبارك`)}&body=${encodeURIComponent(welcomeText(c, name))}`;
-}
-function waLink(c, phone, name) {
-  let n = phone.replace(/[^0-9]/g, '');
-  if (n.startsWith('00')) n = n.slice(2);
-  else if (n.startsWith('0')) n = '970' + n.slice(1);
-  return `https://wa.me/${n}?text=${encodeURIComponent(welcomeText(c, name))}`;
+// Gmail compose in the browser (works on phone and laptop, no mail app needed). Students go in BCC.
+const gmailLink = (c, emails) =>
+  `https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(`قبولك بدورة ${c.title} | سبارك`)}&body=${encodeURIComponent(welcomeText(c))}`;
+
+// shown once, right after adding students. Optional: skipping closes it for good.
+function Welcome({ c, emails, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(welcomeText(c)); setCopied(true); } catch { setCopied(false); }
+  };
+  return (
+    <Sheet title="رسالة قبول (اختياري)" onClose={onClose}>
+      <p style={{ margin: '0 0 10px' }}>انضاف {emails.length} للدورة. بدك تبعتلهم رسالة قبول؟</p>
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, background: 'var(--chip)', borderRadius: 14, padding: 12, margin: 0, maxHeight: 180, overflow: 'auto' }}>{welcomeText(c)}</pre>
+      <a className="cta press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none' }} href={gmailLink(c, emails)} target="_blank" rel="noopener" onClick={() => setTimeout(onClose, 400)}>ابعتها بالإيميل (Gmail)</a>
+      <button className="ghost press" onClick={copy}>{copied ? 'انتسخت ✓ — الصقها بواتساب' : 'انسخ الرسالة لواتساب'}</button>
+      <button className="ghost press" onClick={onClose}>تخطّي</button>
+      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>الإيميلات بتنحط كنسخة مخفية (BCC)، فما حدا بيشوف إيميل التاني.</p>
+    </Sheet>
+  );
 }
 
 function Confirm({ text, onYes, onNo }) {

@@ -310,11 +310,13 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
       onClick={(e) => e.target === e.currentTarget && close()}>
       <button className="navarrow r press" onClick={() => step(-1)} aria-label="السابقة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
       {switching && (
-        <div className={`people ${switching.phase}`} aria-hidden="true">
+        <div className={`people glass ${switching.phase}`} aria-hidden="true">
           {groups.map((x, i) => {
             const focus = switching.phase === 'out' ? switching.from : switching.to;
+            const off = i - focus;
+            if (Math.abs(off) > 3) return null;
             return (
-              <span key={x.author?.id || i} className={`pp ${i === focus ? 'on' : ''}`} style={{ transform: `translateX(${-(i - focus) * 92}px) scale(${i === focus ? 1.18 : 0.86})` }}>
+              <span key={x.author?.id || i} className={`pp ${i === focus ? 'on' : ''}`} style={{ transform: `translateX(${-off * 84}px) scale(${i === focus ? 1.12 : 0.86})` }}>
                 <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={x.author?.photo_url} id={x.author?.id} /></span>
                 <b>{x.author?.full_name?.split(' ')[0]}</b>
               </span>
