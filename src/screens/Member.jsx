@@ -4,6 +4,8 @@ import { friendlyError, membershipNo, supabase } from '../lib/supabase.js';
 import { go } from '../lib/router.js';
 import { LOGO_DARK, Photo, Spinner, TierRow, Tick } from '../ui.jsx';
 import ProfileForm from './ProfileForm.jsx';
+import Works from './Works.jsx';
+import { Sheet, Toast } from '../sheet.jsx';
 
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 const ROLE = { admin: 'إدارة', trainer: 'مدرب' };
@@ -22,6 +24,8 @@ export default function Member({ id }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [msg, setMsg] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -38,9 +42,8 @@ export default function Member({ id }) {
       setD({ p: p.data, courses: c.data, certs: cert.data, works: w.data, visible: vis.data });
     });
     return () => { alive = false; };
-  }, [id, me]);
+  }, [id, me, tick]);
 
-  if (editing) return <ProfileForm mode="edit" onDone={() => setEditing(false)} />;
   if (err) return <><BackBtn /><div className="err" role="alert">{err}</div></>;
   if (!d) return <Spinner />;
   if (!d.p) return <><BackBtn /><p className="empty">العضوية مش ظاهرة أو مش موجودة.</p></>;
@@ -77,10 +80,11 @@ export default function Member({ id }) {
 
       <div className="pcols">
         <div style={{ display: 'grid', gap: 12 }}>
-          {(p.about || p.skills?.length > 0) && (
+          {(own || p.about || p.skills?.length > 0) && (
             <section className="sec glass">
               <h2>نبذة</h2>
               {p.about && <p>{p.about}</p>}
+              {own && !p.about && !p.skills?.length && <p style={{ color: 'var(--muted)' }}>اضغط تعديل وضيف نبذة ومهاراتك.</p>}
               {p.skills?.length > 0 && <div className="picks">{p.skills.map((s) => <span key={s} className="chip">{s}</span>)}</div>}
             </section>
           )}
@@ -123,22 +127,21 @@ export default function Member({ id }) {
               {!certs.length && <p className="empty" style={{ padding: 12 }}>الشهادات بتظهر هون بعد ما تنتهي الدورة.</p>}
             </div>
           </section>
-          {works.length > 0 && (
-            <section className="sec glass">
-              <h2>مشاريع وشهادات خارجية</h2>
-              <div className="works">
-                {works.map((w) => (
-                  <div key={w.id} className="work">
-                    <Photo url={w.image_url} id={'w' + w.id} />
-                    <b>{w.title}</b>
-                    <span className="k">{w.kind === 'project' ? 'مشروع' : 'شهادة خارجية'}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          <Works works={works} own={own} ownerId={id} onChange={() => setTick((t) => t + 1)} toast={setMsg} />
         </div>
       </div>
+      {own && p.role === 'student' && (
+        <div className="lock">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+          دورات سبارك وشهاداتها وتقييماتها بتضيفها الإدارة والمدربين، وما بتنعدّل من عندك.
+        </div>
+      )}
+      {editing && (
+        <Sheet title="تعديل العضوية" onClose={() => setEditing(false)}>
+          {(close) => <ProfileForm mode="edit" onDone={() => { close(); setMsg('انحفظت التعديلات'); }} />}
+        </Sheet>
+      )}
+      <Toast msg={msg} onDone={() => setMsg('')} />
     </>
   );
 }

@@ -11,9 +11,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 export const membershipNo = (n) => (n ? `SPK-M-${String(n).padStart(4, '0')}` : '');
 
-export async function uploadAvatar(userId, file) {
+export const uploadAvatar = (userId, file) => uploadMedia(userId, file, 'avatar');
+
+export async function uploadMedia(userId, file, prefix = 'file') {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const path = `u/${userId}/avatar-${Date.now()}.${ext}`;
+  const path = `u/${userId}/${prefix}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('media').upload(path, file, { contentType: file.type, upsert: false });
   if (error) throw error;
   return supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
