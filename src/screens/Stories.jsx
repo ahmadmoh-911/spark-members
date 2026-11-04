@@ -196,7 +196,12 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   const [views, setViews] = useState(null);
   const [ask, setAsk] = useState(false);
   const [dur, setDur] = useState(5);
+  const [paused, setPaused] = useState(false);
   const timer = useRef(null);
+  const left = useRef(5000);      // ms left on the current text/image story
+  const startedAt = useRef(0);
+  const hold = useRef({ t: null, held: false });
+  const video = useRef(null);
   const x0 = useRef(null);
   const closeBtn = useRef(null);
 
@@ -206,7 +211,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
 
   const close = useCallback(() => { clearTimeout(timer.current); setClosing(true); setTimeout(onClose, 200); }, [onClose]);
   const step = useCallback((d) => {
-    clearTimeout(timer.current); setAsk(false);
+    clearTimeout(timer.current); setAsk(false); setPaused(false);
     if (d > 0) {
       if (si + 1 < g.stories.length) { setSi(si + 1); setAnim('in-next'); }
       else if (gi + 1 < groups.length) { setGi(gi + 1); setSi(0); setAnim('in-next'); }
@@ -217,7 +222,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
     }
   }, [si, gi, g, groups, close]);
   const jump = (d) => { // whole person
-    clearTimeout(timer.current); setAsk(false);
+    clearTimeout(timer.current); setAsk(false); setPaused(false);
     const n = gi + d;
     if (n < 0) return;
     if (n >= groups.length) return close();
@@ -228,11 +233,26 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   useEffect(() => {
     if (!s) return;
     setViews(null);
-    if (s.kind !== 'video') { setDur(5); if (!ask) timer.current = setTimeout(() => step(1), 5000); }
+    left.current = 5000;
+    if (s.kind !== 'video') setDur(5);
     if (user && !mine) supabase.from('story_views').upsert({ story_id: s.id, viewer_id: user.id }, { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }).then(() => {});
     if (mine || isAdmin) supabase.rpc('story_view_count', { p_story: s.id }).then(({ data }) => setViews(data ?? 0));
-    return () => clearTimeout(timer.current);
-  }, [s?.id, ask]);
+  }, [s?.id]);
+
+  // run / pause the clock (long-press, centre tap, or the delete confirm)
+  const halted = paused || ask;
+  useEffect(() => {
+    if (!s) return;
+    if (s.kind === 'video') {
+      const v = video.current;
+      if (v) { if (halted) v.pause(); else v.play().catch(() => {}); }
+      return;
+    }
+    if (halted) return;
+    startedAt.current = Date.now();
+    timer.current = setTimeout(() => step(1), left.current);
+    return () => { clearTimeout(timer.current); left.current = Math.max(0, left.current - (Date.now() - startedAt.current)); };
+  }, [s?.id, halted, step]);
 
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape') close(); if (e.key === 'ArrowLeft') step(1); if (e.key === 'ArrowRight') step(-1); };
@@ -260,16 +280,29 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
       onClick={(e) => e.target === e.currentTarget && close()}>
       <button className="navarrow r press" onClick={() => step(-1)} aria-label="السابقة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
       <article key={`${gi}-${s.id}`} className={`story ${anim}`} style={{ perspective: 900 }}
-        onPointerDown={(e) => { x0.current = e.clientX; }}
-        onPointerUp={(e) => { if (x0.current == null) return; const dx = e.clientX - x0.current; x0.current = null; if (Math.abs(dx) > 50) jump(dx > 0 ? 1 : -1); }}>
+        onPointerDown={(e) => {
+          x0.current = e.clientX;
+          if (e.target.closest('.shead,.sfoot,.confirm')) return;
+          hold.current.held = false;
+          hold.current.t = setTimeout(() => { hold.current.held = true; setPaused(true); }, 220);
+        }}
+        onPointerUp={(e) => {
+          clearTimeout(hold.current.t);
+          if (hold.current.held) { setPaused(false); setTimeout(() => { hold.current.held = false; }, 0); x0.current = null; return; }
+          if (x0.current == null) return;
+          const dx = e.clientX - x0.current; x0.current = null;
+          if (Math.abs(dx) > 50) { hold.current.held = true; setTimeout(() => { hold.current.held = false; }, 0); jump(dx < 0 ? 1 : -1); }
+        }}
+        onPointerCancel={() => { clearTimeout(hold.current.t); if (hold.current.held) setPaused(false); }}
+        onContextMenu={(e) => e.preventDefault()}>
         <div className="bg" style={{ background: '#000' }} />
         {s.kind === 'image' && <img src={s.media_url} alt={s.body || 'صورة ستوري'} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />}
         {s.kind === 'video' && (
-          <video src={s.media_url} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+          <video ref={video} src={s.media_url} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
             onLoadedMetadata={(e) => setDur(Math.min(60, e.currentTarget.duration || 15))} onEnded={() => step(1)} />
         )}
         <div className="progress">
-          {g.stories.map((x, k) => <span key={x.id} className={k < si ? 'done' : k === si && !ask ? 'now' : ''}><i style={k === si ? { animationDuration: `${dur}s` } : undefined} /></span>)}
+          {g.stories.map((x, k) => <span key={x.id} className={k < si ? 'done' : k === si ? 'now' : ''}><i style={k === si ? { animationDuration: `${dur}s`, animationPlayState: halted ? 'paused' : 'running' } : undefined} /></span>)}
         </div>
         <header className="shead">
           <Photo url={g.author?.photo_url} id={g.author?.id} />
@@ -279,8 +312,12 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
           <button ref={closeBtn} className="cbtn press" onClick={close} aria-label="إغلاق"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         </header>
         {s.kind === 'text' ? <div className="txt">{s.body}</div> : s.body ? <p className="cap">{s.body}</p> : null}
-        <button className="tap r" onClick={() => step(-1)} aria-label="السابقة" />
-        <button className="tap l" onClick={() => step(1)} aria-label="التالية" />
+        <button className="tap r" onClick={() => !hold.current.held && step(-1)} aria-label="السابقة" />
+        <button className="tap mid" onClick={() => !hold.current.held && setPaused((p) => !p)} aria-label={paused ? 'تشغيل' : 'إيقاف مؤقت'} aria-pressed={paused} />
+        <button className="tap l" onClick={() => !hold.current.held && step(1)} aria-label="التالية" />
+        {paused && !ask && (
+          <span className="paused-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2" /><rect x="14" y="5" width="4" height="14" rx="1.2" /></svg></span>
+        )}
         {(mine || isAdmin) && (
           <footer className="sfoot">
             {views != null ? (
@@ -288,7 +325,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>{views}
               </span>
             ) : <span />}
-            <button className="gbtn press" onClick={() => { clearTimeout(timer.current); setAsk(true); }}>
+            <button className="gbtn press" onClick={() => setAsk(true)}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>حذف
             </button>
           </footer>

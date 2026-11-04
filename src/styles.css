@@ -218,8 +218,8 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 @keyframes fadeOut{to{opacity:0}}
 .story{position:relative;width:min(380px,100%);height:min(680px,calc(100% - 40px));border-radius:30px;overflow:hidden;color:#FFFFFF;box-shadow:0 30px 70px rgba(0,0,0,.35);touch-action:pan-y;user-select:none}
 .story.in-next{animation:inNext .34s var(--ease) both}.story.in-prev{animation:inPrev .34s var(--ease) both}.story.open{animation:open .38s var(--spring) both}
-@keyframes inNext{from{opacity:.2;transform:translateX(-45%) rotateY(14deg) scale(.9)}to{opacity:1;transform:none}}
-@keyframes inPrev{from{opacity:.2;transform:translateX(45%) rotateY(-14deg) scale(.9)}to{opacity:1;transform:none}}
+@keyframes inNext{from{opacity:.2;transform:translateX(45%) rotateY(-14deg) scale(.9)}to{opacity:1;transform:none}}
+@keyframes inPrev{from{opacity:.2;transform:translateX(-45%) rotateY(14deg) scale(.9)}to{opacity:1;transform:none}}
 @keyframes open{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
 .story .bg{position:absolute;inset:0}
 .story .txt{position:absolute;inset:90px 24px 110px;display:grid;place-items:center;text-align:center;font-family:var(--display);font-size:22px;font-weight:700;line-height:1.7}
@@ -332,3 +332,15 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 .erow .acts{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
 .avatar.seen .ring{background:var(--line);animation:none}
 .sring .avatar{position:relative}
+/* story: centre tap pauses, edges navigate */
+.tap.mid{left:35%;right:35%;width:auto}
+.paused-ico{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:2;pointer-events:none;animation:pop .25s var(--spring) both}
+.paused-ico svg{width:28px;height:28px;fill:#fff}
+.story{-webkit-touch-callout:none}
+/* student card names: wrap to two lines instead of being cut */
+.scard .name{align-items:flex-start}
+.scard .name .nm{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.35}
+.scard .name .tick{margin-top:2px}
+@media (max-width:899px){.cards{gap:8px}.scard{padding:5px}.scard .t{padding:7px 3px 3px}.name{font-size:13.5px}}
+.scard .name .nm{-webkit-line-clamp:3;overflow-wrap:break-word;word-break:normal;unicode-bidi:plaintext;text-align:start}
+@media (max-width:899px){.name{font-size:13px}.scard .q{-webkit-line-clamp:1;font-size:12px}}
