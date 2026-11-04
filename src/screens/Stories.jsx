@@ -7,7 +7,7 @@ import { Photo, Spinner } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DAY = 24 * 60 * 60 * 1000;
-const SELECT = 'id,author_id,course_id,kind,body,media_url,created_at,author:profiles(id,full_name,photo_url),course:courses(title,category)';
+const SELECT = 'id,author_id,course_id,kind,body,media_url,created_at,author:profiles!stories_author_id_fkey(id,full_name,photo_url),course:courses(title,category)';
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 
 export function ago(t) {

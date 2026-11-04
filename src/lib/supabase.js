@@ -28,5 +28,6 @@ export function friendlyError(e) {
   if (/row-level security|permission denied/i.test(m)) return 'ما عندك صلاحية لهالعملية.';
   if (/Unexpected token|not valid JSON|504|timed? ?out/i.test(m)) return 'السيرفر ما ردّ بالوقت. جرّب كمان مرة.';
   if (/exceeded the maximum allowed size|Payload too large/i.test(m)) return 'الصورة أكبر من الحجم المسموح (50 ميغا).';
-  return m || 'صار خطأ غير متوقع.';
+  if (m) console.warn('[spark]', m);
+  return 'صار خطأ غير متوقع. جرّب كمان شوي.';
 }
