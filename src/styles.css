@@ -344,3 +344,18 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 @media (max-width:899px){.cards{gap:8px}.scard{padding:5px}.scard .t{padding:7px 3px 3px}.name{font-size:13.5px}}
 .scard .name .nm{-webkit-line-clamp:3;overflow-wrap:break-word;word-break:normal;unicode-bidi:plaintext;text-align:start}
 @media (max-width:899px){.name{font-size:13px}.scard .q{-webkit-line-clamp:1;font-size:12px}}
+/* story cube: two faces of one cube turning around its vertical axis */
+.stage{position:relative;width:min(380px,100%);height:min(680px,calc(100% - 40px));perspective:1100px;perspective-origin:50% 50%}
+.stage .story{position:absolute;inset:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform}
+.story .shade{position:absolute;inset:0;background:#000;opacity:0;animation:shade .5s ease forwards;pointer-events:none;z-index:4}
+@keyframes shade{to{opacity:.55}}
+/* forward: new face comes in from the left, old face turns away to the right */
+.story.cube-in-fwd{transform-origin:100% 50%;animation:cubeInFwd .5s cubic-bezier(.4,0,.2,1) both}
+.story.cube-out-fwd{transform-origin:0% 50%;animation:cubeOutFwd .5s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
+@keyframes cubeInFwd{from{transform:translateX(-100%) rotateY(-90deg)}to{transform:none}}
+@keyframes cubeOutFwd{from{transform:none}to{transform:translateX(100%) rotateY(90deg)}}
+/* back: mirror */
+.story.cube-in-back{transform-origin:0% 50%;animation:cubeInBack .5s cubic-bezier(.4,0,.2,1) both}
+.story.cube-out-back{transform-origin:100% 50%;animation:cubeOutBack .5s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
+@keyframes cubeInBack{from{transform:translateX(100%) rotateY(90deg)}to{transform:none}}
+@keyframes cubeOutBack{from{transform:none}to{transform:translateX(-100%) rotateY(-90deg)}}

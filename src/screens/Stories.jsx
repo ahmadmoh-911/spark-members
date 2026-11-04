@@ -197,6 +197,8 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   const [ask, setAsk] = useState(false);
   const [dur, setDur] = useState(5);
   const [paused, setPaused] = useState(false);
+  const [ghost, setGhost] = useState(null); // the face turning away during the cube turn
+  const ghostT = useRef(null);
   const timer = useRef(null);
   const left = useRef(5000);      // ms left on the current text/image story
   const startedAt = useRef(0);
@@ -209,16 +211,23 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   const s = g?.stories[si];
   const mine = s && user?.id === s.author_id;
 
+  // cube turn. RTL: the next story is on the left, so it turns in from the left
+  const turn = (d) => {
+    clearTimeout(ghostT.current);
+    setGhost({ g, s, dir: d > 0 ? 'fwd' : 'back', k: Date.now() });
+    setAnim(d > 0 ? 'cube-in-fwd' : 'cube-in-back');
+    ghostT.current = setTimeout(() => setGhost(null), 520);
+  };
   const close = useCallback(() => { clearTimeout(timer.current); setClosing(true); setTimeout(onClose, 200); }, [onClose]);
   const step = useCallback((d) => {
     clearTimeout(timer.current); setAsk(false); setPaused(false);
     if (d > 0) {
-      if (si + 1 < g.stories.length) { setSi(si + 1); setAnim('in-next'); }
-      else if (gi + 1 < groups.length) { setGi(gi + 1); setSi(0); setAnim('in-next'); }
+      if (si + 1 < g.stories.length) { turn(1); setSi(si + 1); }
+      else if (gi + 1 < groups.length) { turn(1); setGi(gi + 1); setSi(0); }
       else close();
     } else {
-      if (si > 0) { setSi(si - 1); setAnim('in-prev'); }
-      else if (gi > 0) { setGi(gi - 1); setSi(groups[gi - 1].stories.length - 1); setAnim('in-prev'); }
+      if (si > 0) { turn(-1); setSi(si - 1); }
+      else if (gi > 0) { turn(-1); setGi(gi - 1); setSi(groups[gi - 1].stories.length - 1); }
     }
   }, [si, gi, g, groups, close]);
   const jump = (d) => { // whole person
@@ -226,7 +235,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
     const n = gi + d;
     if (n < 0) return;
     if (n >= groups.length) return close();
-    setGi(n); setSi(0); setAnim(d > 0 ? 'in-next' : 'in-prev');
+    turn(d); setGi(n); setSi(0);
   };
 
   // auto-advance (text/image 5s, video its own length), record the view, owner's view count
@@ -279,7 +288,17 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
     <div className={`overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={`ستوري ${g.author?.full_name || ''}`}
       onClick={(e) => e.target === e.currentTarget && close()}>
       <button className="navarrow r press" onClick={() => step(-1)} aria-label="السابقة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
-      <article key={`${gi}-${s.id}`} className={`story ${anim}`} style={{ perspective: 900 }}
+      <div className="stage">
+      {ghost && (
+        <article key={'ghost' + ghost.k} className={`story cube-out-${ghost.dir}`} aria-hidden="true">
+          <div className="bg" style={{ background: '#000' }} />
+          {ghost.s.kind === 'image' && <img src={ghost.s.media_url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />}
+          {ghost.s.kind === 'text' ? <div className="txt">{ghost.s.body}</div> : ghost.s.body ? <p className="cap">{ghost.s.body}</p> : null}
+          <header className="shead"><Photo url={ghost.g.author?.photo_url} id={ghost.g.author?.id} /><span className="who"><b>{ghost.g.author?.full_name}</b>{ago(ghost.s.created_at)}</span></header>
+          <span className="shade" />
+        </article>
+      )}
+      <article key={`${gi}-${s.id}`} className={`story ${anim}`}
         onPointerDown={(e) => {
           x0.current = e.clientX;
           if (e.target.closest('.shead,.sfoot,.confirm')) return;
@@ -291,7 +310,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
           if (hold.current.held) { setPaused(false); setTimeout(() => { hold.current.held = false; }, 0); x0.current = null; return; }
           if (x0.current == null) return;
           const dx = e.clientX - x0.current; x0.current = null;
-          if (Math.abs(dx) > 50) { hold.current.held = true; setTimeout(() => { hold.current.held = false; }, 0); jump(dx < 0 ? 1 : -1); }
+          if (Math.abs(dx) > 50) { hold.current.held = true; setTimeout(() => { hold.current.held = false; }, 0); jump(dx > 0 ? 1 : -1); }
         }}
         onPointerCancel={() => { clearTimeout(hold.current.t); if (hold.current.held) setPaused(false); }}
         onContextMenu={(e) => e.preventDefault()}>
@@ -315,9 +334,6 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
         <button className="tap r" onClick={() => !hold.current.held && step(-1)} aria-label="السابقة" />
         <button className="tap mid" onClick={() => !hold.current.held && setPaused((p) => !p)} aria-label={paused ? 'تشغيل' : 'إيقاف مؤقت'} aria-pressed={paused} />
         <button className="tap l" onClick={() => !hold.current.held && step(1)} aria-label="التالية" />
-        {paused && !ask && (
-          <span className="paused-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2" /><rect x="14" y="5" width="4" height="14" rx="1.2" /></svg></span>
-        )}
         {(mine || isAdmin) && (
           <footer className="sfoot">
             {views != null ? (
@@ -338,6 +354,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
         )}
         {Date.now() - Date.parse(s.created_at) > DAY && <span style={{ position: 'absolute', top: 66, insetInlineStart: 14, fontSize: 12, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,255,255,.2)', zIndex: 2 }}>أرشيف</span>}
       </article>
+      </div>
       <button className="navarrow l press" onClick={() => step(1)} aria-label="التالية"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg></button>
     </div>,
     document.body,
