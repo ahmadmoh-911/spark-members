@@ -376,3 +376,34 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 @keyframes barUp{from{opacity:0;transform:translateY(40px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes barDown{to{opacity:0;transform:translateY(40px) scale(.96)}}
 .stage.zoomed-out{transform:translateY(32vh) scale(.14)}
+
+/* help */
+.hfab{position:fixed;z-index:25;top:calc(76px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));width:44px;height:44px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:var(--blue);font-size:22px;font-weight:700;background:rgba(255,255,255,.7);backdrop-filter:blur(18px) saturate(180%);-webkit-backdrop-filter:blur(18px) saturate(180%);border:1px solid rgba(255,255,255,.9);box-shadow:0 8px 22px rgba(19,79,150,.18);animation:fabIn .5s var(--spring) .4s both}
+.hfab::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(45,123,216,.35);animation:fabRing 2.8s ease-out 1.2s infinite}
+@keyframes fabIn{from{opacity:0;transform:scale(.5) rotate(-20deg)}to{opacity:1;transform:none}}
+@keyframes fabRing{0%{transform:scale(.9);opacity:.9}70%,100%{transform:scale(1.35);opacity:0}}
+@media (min-width:900px){.hfab{top:calc(84px + env(safe-area-inset-top,0px))}}
+.help{max-width:720px;margin:0 auto;display:grid;gap:12px;padding-top:6px}
+.hhero{border-radius:30px;padding:26px 22px;text-align:center;animation:pop .5s var(--spring) both;position:relative;overflow:hidden}
+.hhero::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 100% 0,rgba(244,123,32,.14),transparent 60%),radial-gradient(120% 80% at 0 100%,rgba(75,180,84,.14),transparent 60%);pointer-events:none}
+.hlogo{height:56px;display:flex;justify-content:center;margin-bottom:12px;position:relative}
+.hhero h1{font-size:26px;font-weight:700;position:relative}
+.hhero p{margin:10px 0 0;color:var(--ink-2);font-size:16px;line-height:1.8;position:relative}
+.hcard{display:flex;gap:14px;align-items:flex-start;padding:18px;border-radius:24px;animation:rise .45s var(--ease) both;position:relative;overflow:hidden}
+.hcard::before{content:"";position:absolute;inset:0 0 auto auto;width:4px;height:100%;background:var(--c);opacity:.8}
+.hico{flex:none;width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,var(--c) 16%,white);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 30%,transparent)}
+.hbody{min-width:0;flex:1}
+.hbody h2{font-size:18px;font-weight:700;margin-bottom:6px}
+.hbody p{margin:6px 0 0;line-height:1.8;color:var(--ink-2)}
+.hbody ul{margin:6px 0 0;padding-inline-start:20px;line-height:1.8;color:var(--ink-2)}
+.hbody li{margin:3px 0}
+.hbody li::marker{color:var(--c)}
+.hnote{background:color-mix(in srgb,var(--c) 12%,white);border-radius:14px;padding:10px 12px;margin-top:10px!important;font-size:14px}
+.hgest{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.hgest span{display:grid;gap:2px;padding:10px 12px;border-radius:14px;background:var(--chip);font-size:13px;color:var(--ink-2)}
+.hgest b{font-size:14px;color:var(--ink)}
+.hfaq{margin:4px 0 0}
+.hfaq dt{font-weight:600;margin-top:10px}
+.hfaq dd{margin:2px 0 0;color:var(--ink-2);line-height:1.7}
+.hgo{margin:6px 0 10px}
+@media (max-width:899px){.head{padding-left:52px}}

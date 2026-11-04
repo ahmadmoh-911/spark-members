@@ -13,6 +13,28 @@
   <title>طلاب سبارك</title>
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+    <style>
+      #splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#fff;overflow:hidden;transition:opacity .4s ease,transform .4s ease}
+      #splash.hide{opacity:0;transform:scale(1.04);pointer-events:none}
+      #splash .glow{position:absolute;width:70vmax;height:70vmax;border-radius:50%;filter:blur(40px);opacity:.55;animation:sdrift 3s ease-in-out infinite alternate}
+      #splash .g1{background:radial-gradient(circle,rgba(19,79,150,.55),transparent 65%);top:-30vmax;right:-25vmax}
+      #splash .g2{background:radial-gradient(circle,rgba(244,123,32,.5),transparent 65%);bottom:-35vmax;left:-25vmax;animation-delay:-1.5s}
+      #splash .g3{background:radial-gradient(circle,rgba(75,180,84,.45),transparent 65%);bottom:-30vmax;right:-35vmax;animation-delay:-.8s}
+      #splash .g4{background:radial-gradient(circle,rgba(255,205,5,.5),transparent 65%);top:-35vmax;left:-30vmax;animation-delay:-2.2s}
+      #splash .mark{position:relative;display:grid;justify-items:center;gap:22px;animation:spop .6s cubic-bezier(.34,1.56,.64,1) both}
+      #splash .mark img{width:min(220px,56vw);height:auto}
+      #splash .dots{display:flex;gap:8px}
+      #splash .dots i{width:9px;height:9px;border-radius:50%;animation:sdot 1s ease-in-out infinite}
+      #splash .dots i:nth-child(1){background:#4BB454}#splash .dots i:nth-child(2){background:#134F96;animation-delay:.12s}#splash .dots i:nth-child(3){background:#F47B20;animation-delay:.24s}#splash .dots i:nth-child(4){background:#FFCD05;animation-delay:.36s}
+      @keyframes spop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
+      @keyframes sdot{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-7px);opacity:1}}
+      @keyframes sdrift{to{transform:translate(4vmax,-3vmax) scale(1.08)}}
+      @media (prefers-reduced-motion:reduce){#splash *{animation:none!important}}
+    </style>
+    <i class="glow g1"></i><i class="glow g2"></i><i class="glow g3"></i><i class="glow g4"></i>
+    <div class="mark"><img src="brand/logo-dark.png" alt=""><span class="dots"><i></i><i></i><i></i><i></i></span></div>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

@@ -10,6 +10,8 @@ import Member from './screens/Member.jsx';
 import Stories from './screens/Stories.jsx';
 import Panel from './screens/Panel.jsx';
 import Install from './Install.jsx';
+import Help, { HelpFab } from './screens/Help.jsx';
+import { useEffect } from 'react';
 
 const NAV = [
   { id: 'students', label: 'الطلاب', icon: <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2" /><circle cx="17" cy="9" r="2.4" /><path d="M16.5 13.9c2.3.2 4 1.6 4.5 4.6" /></> },
@@ -60,6 +62,16 @@ export default function App() {
   const { ready, user, needsOnboarding } = useAuth();
   const route = useRoute();
 
+  // hand over from the HTML splash once the session is known (shown at least ~0.7s, never extra after that)
+  useEffect(() => {
+    if (!ready) return;
+    const el = document.getElementById('splash');
+    if (!el) return;
+    const wait = Math.max(0, 700 - performance.now());
+    const t = setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 450); }, wait);
+    return () => clearTimeout(t);
+  }, [ready]);
+
   let body;
   if (!ready) body = <Spinner />;
   else if (needsOnboarding) body = <ProfileForm mode="onboard" />;
@@ -68,6 +80,7 @@ export default function App() {
       case 'login': body = user ? <Member id={user.id} /> : <Login />; break;
       case 'me': body = user ? <Member id={user.id} /> : <Login />; break;
       case 'member': body = <Member id={route.id} />; break;
+      case 'help': body = <Help />; break;
       case 'panel': body = user ? <Panel /> : <Login />; break;
       case 'course': body = <Course id={route.id} />; break;
       case 'courses': body = <Courses />; break;
@@ -85,6 +98,7 @@ export default function App() {
       </main>
       {!needsOnboarding && <BottomBar tab={route.tab} />}
       <Install />
+      {!needsOnboarding && route.page !== 'help' && <HelpFab />}
     </>
   );
 }

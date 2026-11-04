@@ -7,6 +7,7 @@ export function parse(hash = location.hash) {
   const h = hash.replace(/^#\/?/, '');
   if (TABS.includes(h)) return { tab: h, page: h, depth: 0 };
   if (h === 'login') return { tab: null, page: 'login', depth: 1 };
+  if (h === 'help') return { tab: null, page: 'help', depth: 1 };
   if (h === 'panel') return { tab: null, page: 'panel', depth: 1 };
   if (h === 'me') return { tab: null, page: 'me', depth: 1 };
   let m;
