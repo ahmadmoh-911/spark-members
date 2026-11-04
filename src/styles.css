@@ -342,3 +342,5 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 .erow .top-line{display:flex;gap:10px;align-items:center;min-width:0}
 .erow .top-line .ph{width:44px;height:44px;border-radius:50%;flex:none}
 .erow .acts{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.avatar.seen .ring{background:var(--line);animation:none}
+.sring .avatar{position:relative}

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { supabase } from './supabase.js';
 
 const AuthCtx = createContext(null);
+const ADMIN_MAX_MS = 72 * 60 * 60 * 1000;
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -36,6 +37,19 @@ export function AuthProvider({ children }) {
     });
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }, [loadProfile]);
+
+  // admin sign-ins expire 72h after the Google login, wherever the session lives
+  useEffect(() => {
+    if (profile?.role !== 'admin' || !session?.user?.last_sign_in_at) return;
+    const check = () => {
+      if (Date.now() - Date.parse(session.user.last_sign_in_at) > ADMIN_MAX_MS) {
+        supabase.auth.signOut().then(() => { location.hash = '#/login'; });
+      }
+    };
+    check();
+    const t = setInterval(check, 10 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [profile?.role, session]);
 
   const signInWithGoogle = () => supabase.auth.signInWithOAuth({
     provider: 'google',

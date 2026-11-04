@@ -5,6 +5,7 @@ import { go } from '../lib/router.js';
 import { LOGO_DARK, Photo, Spinner, TierRow, Tick } from '../ui.jsx';
 import ProfileForm from './ProfileForm.jsx';
 import Works from './Works.jsx';
+import { ArchiveButton } from './Stories.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
@@ -63,8 +64,10 @@ export default function Member({ id }) {
           {p.specialty && <span className="spec">{p.specialty}</span>}
           {p.tagline && <span className="quote">{p.tagline}</span>}
           {p.role === 'student' && <span className="member">رقم العضوية <b dir="ltr">{membershipNo(p.member_no)}</b></span>}
+          {!own && <div className="pacts"><ArchiveButton member={p.id} /></div>}
           {own && (
             <div className="pacts">
+              <ArchiveButton member={p.id} />
               <button className="pbtn primary press" onClick={() => setEditing(true)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /></svg>تعديل
               </button>
