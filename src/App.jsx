@@ -8,6 +8,8 @@ import Courses from './screens/Courses.jsx';
 import Course from './screens/Course.jsx';
 import Member from './screens/Member.jsx';
 import Stories from './screens/Stories.jsx';
+import Panel from './screens/Panel.jsx';
+import Install from './Install.jsx';
 
 const NAV = [
   { id: 'students', label: 'الطلاب', icon: <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2" /><circle cx="17" cy="9" r="2.4" /><path d="M16.5 13.9c2.3.2 4 1.6 4.5 4.6" /></> },
@@ -16,7 +18,7 @@ const NAV = [
 ];
 
 function TopBar() {
-  const { user, profile } = useAuth();
+  const { user, profile, isTrainer, isAdmin } = useAuth();
   const route = useRoute();
   return (
     <header className="top">
@@ -27,6 +29,8 @@ function TopBar() {
             <button key={n.id} className="press" aria-current={route.tab === n.id ? 'page' : undefined} onClick={() => go(n.id)}>{n.label}</button>
           ))}
         </nav>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {isTrainer && <button className="staff-btn press" onClick={() => go('panel')}>{isAdmin ? 'لوحة الإدارة' : 'لوحة المدرب'}</button>}
         {user ? (
           <button className="me-btn press" aria-label="عضويتي" onClick={() => go('me')}>
             <Photo url={profile?.photo_url} id={user.id} style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2px solid var(--bg)' }} />
@@ -34,6 +38,7 @@ function TopBar() {
         ) : (
           <button className="login-btn press" onClick={() => go('login')}>دخول</button>
         )}
+        </div>
       </div>
     </header>
   );
@@ -63,6 +68,7 @@ export default function App() {
       case 'login': body = user ? <Member id={user.id} /> : <Login />; break;
       case 'me': body = user ? <Member id={user.id} /> : <Login />; break;
       case 'member': body = <Member id={route.id} />; break;
+      case 'panel': body = user ? <Panel /> : <Login />; break;
       case 'course': body = <Course id={route.id} />; break;
       case 'courses': body = <Courses />; break;
       case 'stories': body = <Stories />; break;
@@ -78,6 +84,7 @@ export default function App() {
         <div key={route.key ?? 'first'} className={`view ${route.anim}`}>{body}</div>
       </main>
       {!needsOnboarding && <BottomBar tab={route.tab} />}
+      <Install />
     </>
   );
 }
