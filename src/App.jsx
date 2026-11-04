@@ -62,12 +62,12 @@ export default function App() {
   const { ready, user, needsOnboarding } = useAuth();
   const route = useRoute();
 
-  // hand over from the HTML splash once the session is known (shown at least ~0.7s, never extra after that)
+  // hand over from the HTML splash once the session is known (shown at least ~1.8s, never extra after that)
   useEffect(() => {
     if (!ready) return;
     const el = document.getElementById('splash');
     if (!el) return;
-    const wait = Math.max(0, 700 - performance.now());
+    const wait = Math.max(0, 1800 - performance.now());
     const t = setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 450); }, wait);
     return () => clearTimeout(t);
   }, [ready]);

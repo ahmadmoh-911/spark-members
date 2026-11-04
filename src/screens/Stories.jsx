@@ -35,7 +35,7 @@ export function usePostable() {
   const [courses, setCourses] = useState([]);
   useEffect(() => {
     if (!user) { setCourses([]); return; }
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA');
     supabase.rpc('member_courses', { p_member: user.id }).then(({ data }) => {
       setCourses((data || []).filter((c) => c.start_date && c.start_date <= today));
     });
@@ -118,7 +118,7 @@ function Composer({ courses, onClose, onPosted }) {
   const [kind, setKind] = useState('text');
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
-  const [course, setCourse] = useState(courses.find((c) => !c.end_date || c.end_date >= new Date().toISOString().slice(0, 10))?.course_id ?? courses[0]?.course_id);
+  const [course, setCourse] = useState(courses.find((c) => !c.end_date || c.end_date >= new Date().toLocaleDateString('en-CA'))?.course_id ?? courses[0]?.course_id);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const preview = file ? URL.createObjectURL(file) : '';

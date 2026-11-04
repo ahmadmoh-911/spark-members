@@ -155,7 +155,7 @@ export default function Member({ id }) {
       {own && p.role === 'student' && (
         <div className="lock">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
-          دورات سبارك وشهاداتها وتقييماتها بتضيفها الإدارة والمدربين، وما بتنعدّل من عندك.
+          دورات سبارك وشهاداتها وتقييماتها بتضيفها الإدارة والمدربين، وما بتتعدّل من عندك.
         </div>
       )}
       {editing && (

@@ -4,7 +4,7 @@ import { go } from '../lib/router.js';
 import { gradFor, Spinner } from '../ui.jsx';
 
 export function courseStatus(c) {
-  const t = new Date().toISOString().slice(0, 10);
+  const t = new Date().toLocaleDateString('en-CA');
   if (c.start_date && t < c.start_date) return 'قريباً';
   if (c.end_date && t > c.end_date) return 'انتهت';
   return 'جارية';
