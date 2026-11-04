@@ -14,7 +14,7 @@
   --chip:rgba(11,26,51,.06); --line:rgba(11,26,51,.10);
   --blue:#134F96; --blue-2:#2D7BD8; --green:#4BB454; --orange:#F47B20; --yellow:#FFCD05;
   --on-blue:#FFFFFF; --story-text-bg:#000000;
-  --b1:rgba(19,79,150,.42); --b2:rgba(244,123,32,.38); --b3:rgba(75,180,84,.36); --b4:rgba(255,205,5,.40);
+  --b1:rgba(19,79,150,.58); --b2:rgba(244,123,32,.52); --b3:rgba(75,180,84,.52); --b4:rgba(255,205,5,.56);
   --shadow:0 10px 30px rgba(11,26,51,.10);
   --silver-bg:linear-gradient(135deg,#F3F5F8,#C3CAD4); --silver-fg:#3A4250;
   --gold-bg:linear-gradient(135deg,#FFE7A3,#F2B93B); --gold-fg:#5E4100;
@@ -349,13 +349,27 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 .stage .story{position:absolute;inset:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform}
 .story .shade{position:absolute;inset:0;background:#000;opacity:0;animation:shade .5s ease forwards;pointer-events:none;z-index:4}
 @keyframes shade{to{opacity:.55}}
-/* forward: new face comes in from the left, old face turns away to the right */
-.story.cube-in-fwd{transform-origin:100% 50%;animation:cubeInFwd .5s cubic-bezier(.4,0,.2,1) both}
-.story.cube-out-fwd{transform-origin:0% 50%;animation:cubeOutFwd .5s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
-@keyframes cubeInFwd{from{transform:translateX(-100%) rotateY(-90deg)}to{transform:none}}
-@keyframes cubeOutFwd{from{transform:none}to{transform:translateX(100%) rotateY(90deg)}}
-/* back: mirror */
-.story.cube-in-back{transform-origin:0% 50%;animation:cubeInBack .5s cubic-bezier(.4,0,.2,1) both}
-.story.cube-out-back{transform-origin:100% 50%;animation:cubeOutBack .5s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
-@keyframes cubeInBack{from{transform:translateX(100%) rotateY(90deg)}to{transform:none}}
-@keyframes cubeOutBack{from{transform:none}to{transform:translateX(-100%) rotateY(-90deg)}}
+/* true cube: faces rotate around the cube's centre, half a face-width behind the screen */
+.stage{transition:transform .34s cubic-bezier(.4,0,.2,1),opacity .34s ease}
+.stage.turning{animation:cubeZoom .62s cubic-bezier(.45,.05,.25,1)}
+@keyframes cubeZoom{50%{transform:scale(.92)}}
+.stage .story.cube-in-fwd,.stage .story.cube-out-fwd,.stage .story.cube-in-back,.stage .story.cube-out-back{transform-origin:50% 50% var(--o)}
+.story.cube-in-fwd{animation:cubeInFwd .62s cubic-bezier(.45,.05,.25,1) both}
+.story.cube-out-fwd{animation:cubeOutFwd .62s cubic-bezier(.45,.05,.25,1) both;pointer-events:none}
+.story.cube-in-back{animation:cubeInBack .62s cubic-bezier(.45,.05,.25,1) both}
+.story.cube-out-back{animation:cubeOutBack .62s cubic-bezier(.45,.05,.25,1) both;pointer-events:none}
+@keyframes cubeInFwd{from{transform:rotateY(-90deg)}to{transform:rotateY(0)}}
+@keyframes cubeOutFwd{from{transform:rotateY(0)}to{transform:rotateY(90deg)}}
+@keyframes cubeInBack{from{transform:rotateY(90deg)}to{transform:rotateY(0)}}
+@keyframes cubeOutBack{from{transform:rotateY(0)}to{transform:rotateY(-90deg)}}
+.story .shade{animation-duration:.62s}
+/* person to person */
+.stage.zoomed-out{transform:scale(.16);opacity:0}
+.people{position:absolute;inset:0;pointer-events:none;z-index:1}
+.people .pp{position:absolute;top:50%;left:50%;margin:-52px 0 0 -40px;width:80px;display:grid;justify-items:center;gap:6px;color:#fff;font-size:13px;opacity:.55;transition:transform .36s cubic-bezier(.4,0,.2,1),opacity .36s}
+.people .pp .avatar{width:72px;height:72px}
+.people .pp .avatar .gap{background:#0b1a33}
+.people .pp.on{opacity:1}
+.people .pp b{font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,.4);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.people.out{animation:fade .3s ease both}
+.people.in{animation:fadeOut .36s ease forwards}

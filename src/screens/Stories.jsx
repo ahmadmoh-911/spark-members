@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
@@ -199,6 +199,16 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   const [paused, setPaused] = useState(false);
   const [ghost, setGhost] = useState(null); // the face turning away during the cube turn
   const ghostT = useRef(null);
+  const [switching, setSwitching] = useState(null); // person→person: zoom out, pick, zoom in
+  const swT = useRef([]);
+  const stageRef = useRef(null);
+  const [half, setHalf] = useState(190);
+  useLayoutEffect(() => {
+    const el = stageRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => setHalf(el.offsetWidth / 2));
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  useEffect(() => () => { swT.current.forEach(clearTimeout); clearTimeout(ghostT.current); }, []);
   const timer = useRef(null);
   const left = useRef(5000);      // ms left on the current text/image story
   const startedAt = useRef(0);
@@ -216,26 +226,37 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
     clearTimeout(ghostT.current);
     setGhost({ g, s, dir: d > 0 ? 'fwd' : 'back', k: Date.now() });
     setAnim(d > 0 ? 'cube-in-fwd' : 'cube-in-back');
-    ghostT.current = setTimeout(() => setGhost(null), 520);
+    ghostT.current = setTimeout(() => setGhost(null), 640);
+  };
+  // another person: zoom out of this cube, slide to the next person, zoom into theirs
+  const personGo = (n, si0) => {
+    if (switching) return;
+    clearTimeout(ghostT.current); setGhost(null);
+    setSwitching({ phase: 'out', from: gi, to: n });
+    swT.current = [
+      setTimeout(() => setSwitching({ phase: 'pick', from: gi, to: n }), 320),
+      setTimeout(() => { setGi(n); setSi(si0); setAnim(''); setSwitching({ phase: 'in', from: gi, to: n }); }, 700),
+      setTimeout(() => setSwitching(null), 1120),
+    ];
   };
   const close = useCallback(() => { clearTimeout(timer.current); setClosing(true); setTimeout(onClose, 200); }, [onClose]);
   const step = useCallback((d) => {
     clearTimeout(timer.current); setAsk(false); setPaused(false);
     if (d > 0) {
       if (si + 1 < g.stories.length) { turn(1); setSi(si + 1); }
-      else if (gi + 1 < groups.length) { turn(1); setGi(gi + 1); setSi(0); }
+      else if (gi + 1 < groups.length) personGo(gi + 1, 0);
       else close();
     } else {
       if (si > 0) { turn(-1); setSi(si - 1); }
-      else if (gi > 0) { turn(-1); setGi(gi - 1); setSi(groups[gi - 1].stories.length - 1); }
+      else if (gi > 0) personGo(gi - 1, groups[gi - 1].stories.length - 1);
     }
-  }, [si, gi, g, groups, close]);
+  }, [si, gi, g, groups, close, switching]);
   const jump = (d) => { // whole person
     clearTimeout(timer.current); setAsk(false); setPaused(false);
     const n = gi + d;
     if (n < 0) return;
     if (n >= groups.length) return close();
-    turn(d); setGi(n); setSi(0);
+    personGo(n, 0);
   };
 
   // auto-advance (text/image 5s, video its own length), record the view, owner's view count
@@ -249,7 +270,7 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
   }, [s?.id]);
 
   // run / pause the clock (long-press, centre tap, or the delete confirm)
-  const halted = paused || ask;
+  const halted = paused || ask || !!switching;
   useEffect(() => {
     if (!s) return;
     if (s.kind === 'video') {
@@ -288,7 +309,20 @@ export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
     <div className={`overlay ${closing ? 'closing' : ''}`} role="dialog" aria-modal="true" aria-label={`ستوري ${g.author?.full_name || ''}`}
       onClick={(e) => e.target === e.currentTarget && close()}>
       <button className="navarrow r press" onClick={() => step(-1)} aria-label="السابقة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
-      <div className="stage">
+      {switching && (
+        <div className={`people ${switching.phase}`} aria-hidden="true">
+          {groups.map((x, i) => {
+            const focus = switching.phase === 'out' ? switching.from : switching.to;
+            return (
+              <span key={x.author?.id || i} className={`pp ${i === focus ? 'on' : ''}`} style={{ transform: `translateX(${-(i - focus) * 92}px) scale(${i === focus ? 1.18 : 0.86})` }}>
+                <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={x.author?.photo_url} id={x.author?.id} /></span>
+                <b>{x.author?.full_name?.split(' ')[0]}</b>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <div ref={stageRef} className={`stage ${ghost ? 'turning' : ''} ${switching && switching.phase !== 'in' ? 'zoomed-out' : ''}`} style={{ '--o': `${-half}px` }}>
       {ghost && (
         <article key={'ghost' + ghost.k} className={`story cube-out-${ghost.dir}`} aria-hidden="true">
           <div className="bg" style={{ background: '#000' }} />
