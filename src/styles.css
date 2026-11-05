@@ -597,6 +597,74 @@ button,a,.press{touch-action:manipulation}
 .scard .ov{background:linear-gradient(0deg,rgba(6,14,28,.9),rgba(6,14,28,.55) 55%,transparent)}
 /* profile cover photo */
 .pcover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* ===== native-feel UI ===== */
+/* bottom bar: a pill slides under the active tab */
+.bottom{padding:0 10px}
+.bottom button{flex:1;z-index:1}
+.bind{position:absolute;top:6px;bottom:6px;right:10px;width:calc((100% - 20px)/3);border-radius:18px;background:rgba(19,79,150,.10);transform:translateX(calc(var(--i) * -100%));transition:transform .45s var(--spring)}
+.bottom button[aria-current="page"] svg{animation:hop .45s var(--spring),wig .6s ease .1s}
+@keyframes wig{30%{transform:rotate(-8deg)}60%{transform:rotate(6deg)}}
+/* pull to refresh: Spark dots */
+.ptr{position:fixed;z-index:60;top:calc(70px + env(safe-area-inset-top,0px));left:50%;display:flex;gap:6px;padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:var(--shadow);transform:translate(-50%,-60px);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s var(--spring)}
+.ptr i{width:9px;height:9px;border-radius:50%;background:#4BB454}.ptr i:nth-child(2){background:#134F96}.ptr i:nth-child(3){background:#F47B20}.ptr i:nth-child(4){background:#FFCD05}
+.ptr.ready i{transform:scale(1.25);transition:transform .2s var(--spring)}
+.ptr.spin i{animation:sdotp .7s ease-in-out infinite}.ptr.spin i:nth-child(2){animation-delay:.1s}.ptr.spin i:nth-child(3){animation-delay:.2s}.ptr.spin i:nth-child(4){animation-delay:.3s}
+@keyframes sdotp{50%{transform:translateY(-7px)}}
+/* mini title in the top bar (profile / course) */
+.minihead{position:fixed;z-index:31;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translate(-50%,-14px);opacity:0;pointer-events:none;display:flex;align-items:center;gap:8px;max-width:52vw;transition:opacity .25s,transform .3s var(--ease)}
+.minihead.on{opacity:1;transform:translate(-50%,0)}
+.minihead .ph{width:34px;height:34px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #fff}
+.minihead b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:36px}
+@media (min-width:900px){.minihead{display:none}}
+/* profile: parallax cover, live story ring, photo-tone glow */
+.pcover-wrap{position:relative;overflow:hidden;border-radius:28px 28px 0 0}
+.pcover{will-change:transform}
+.pav .ring{opacity:.35}
+.pav.live .ring{opacity:1}
+.pav.live{cursor:pointer;border:0;padding:0;background:transparent}
+.pav.live .ring{animation:spin 3s linear infinite;inset:-3px}
+.pav.live::after{content:"ستوري";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:#fff;background:linear-gradient(90deg,#F47B20,#E5427A);padding:1px 8px;border-radius:999px;box-shadow:0 0 0 2px #fff}
+.pcard.toned{box-shadow:0 16px 44px rgba(var(--tone),.30)}
+.scard.toned{box-shadow:0 8px 22px rgba(var(--tone),.40)}
+/* student card with a story today: Instagram-style ring */
+.scard.live{box-shadow:0 0 0 2.5px #fff,0 0 0 5px #F47B20,0 6px 18px rgba(244,123,32,.35)}
+.scard.live::after{content:"";position:absolute;top:8px;left:8px;width:10px;height:10px;border-radius:50%;background:#F47B20;box-shadow:0 0 0 2px #fff;animation:livepulse 1.8s ease-in-out infinite}
+@keyframes livepulse{50%{transform:scale(1.35);opacity:.7}}
+/* filters: sticky search + chips that tuck away while scrolling down */
+.filters{position:sticky;top:calc(72px + env(safe-area-inset-top,0px));z-index:15;margin:0 -4px 12px;padding:0 4px;transition:transform .3s var(--ease),opacity .3s}
+.filters.tuck{transform:translateY(-140%);opacity:0;pointer-events:none}
+.filters .search{margin-bottom:8px}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.fchip{flex:none;height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--glass-strong);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer;transition:background .2s,color .2s,transform .2s var(--spring)}
+.fchip.on{background:var(--blue);color:#fff;border-color:transparent}
+.fchip:active{transform:scale(.94)}
+/* stories page */
+.compose{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:22px;margin-bottom:12px;text-align:start;cursor:pointer;font-family:inherit;color:inherit}
+.compose .avatar{width:48px;height:48px;flex:none}
+.compose .cq{flex:1;height:44px;display:flex;align-items:center;padding:0 14px;border-radius:999px;background:var(--chip);color:var(--muted);font-size:15px}
+.compose .ck{display:flex;gap:4px;font-size:22px}
+.compose .ck span{width:40px;height:40px;display:grid;place-items:center;border-radius:12px}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (min-width:900px){.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tile{position:relative;aspect-ratio:9/14;border:0;padding:0;border-radius:18px;overflow:hidden;background:#000;color:#fff;cursor:pointer;animation:rise .4s var(--ease) both;box-shadow:0 6px 18px rgba(11,26,51,.12)}
+.tile.new{box-shadow:0 0 0 2.5px #fff,0 0 0 5px #F47B20,0 6px 18px rgba(244,123,32,.3)}
+.tile img,.tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile .ttxt{position:absolute;inset:14px 12px 56px;display:grid;place-items:center;text-align:center;font-family:var(--display);font-weight:700;font-size:15px;line-height:1.6;overflow:hidden}
+.tile .play{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+.tile .tmeta{position:absolute;inset:auto 0 0 0;display:flex;align-items:center;gap:8px;padding:28px 10px 10px;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);text-align:start}
+.tile .tmeta .ph{width:28px;height:28px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #fff}
+.tile .tmeta span{display:grid;font-size:11px;line-height:1.3;opacity:.95}
+.tile .tmeta b{font-size:13px}
+.sfab{position:fixed;z-index:35;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(96px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#F47B20,#E5427A);box-shadow:0 10px 26px rgba(229,66,122,.4);cursor:pointer;animation:fabIn .5s var(--spring) .2s both}
+.sfab svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+@media (min-width:900px){.sfab{bottom:32px;left:32px}}
+/* course hero: cinematic */
+.chero.cine{overflow:hidden}
+.chero.cine .art{position:absolute;inset:-6% 0 0 0;background:var(--cover);will-change:transform;transform:scale(1.06)}
+.cnums{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:13px}
+.cnums b{font-size:20px;margin-inline-end:4px}
+
 /* story layout: header · story (as big as possible) · caption · one bottom bar — nothing covers the picture */
 .story{display:flex;flex-direction:column;padding-top:70px}
 /* the picture/video fills the whole story (cropped if needed); caption and bar sit on top at the bottom, one under the other */

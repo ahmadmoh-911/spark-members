@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { supabase as _sb } from './lib/supabase.js';
 
 const BASE = import.meta.env.BASE_URL;
 export const LOGO_DARK = `${BASE}brand/logo-dark.png`;
@@ -73,7 +74,7 @@ export const gradFor = (id = '') => GRADS[[...String(id)].reduce((a, c) => a + c
 export function Photo({ url, id, className = '', style, ...rest }) {
   return (
     <span className={`ph ${className}`} style={{ '--g': gradFor(id), ...style }} {...rest}>
-      {url ? <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+      {url ? <img src={url} alt="" loading="lazy" decoding="async" crossOrigin={isOurs(url) ? 'anonymous' : undefined} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
         : (
           <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
             <circle cx="50" cy="40" r="17" fill="#fff" opacity=".32" />
@@ -170,6 +171,61 @@ export async function celebrate() {
   const colors = ['#4BB454', '#134F96', '#F47B20', '#FFCD05'];
   confetti({ particleCount: 90, spread: 75, startVelocity: 42, origin: { y: 0.7 }, colors, zIndex: 9999, disableForReducedMotion: true });
   setTimeout(() => confetti({ particleCount: 60, spread: 110, origin: { y: 0.6 }, colors, zIndex: 9999, disableForReducedMotion: true }), 250);
+}
+
+// ---- photo tone: the main colour of a member's photo, for a soft matching glow ----
+// Only our own storage (it allows cross-origin reads, and the <img> uses the same CORS mode, so
+// the browser reuses the downloaded file — no second download).
+export const isOurs = (u = '') => u.includes('.supabase.co/storage/');
+const tones = new Map();
+export function usePhotoTone(url) {
+  const [tone, setTone] = useState(() => tones.get(url) || null);
+  useEffect(() => {
+    if (!url || !isOurs(url)) return;
+    if (tones.has(url)) { setTone(tones.get(url)); return; }
+    let dead = false;
+    const run = () => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = 8;
+          const x = c.getContext('2d', { willReadFrequently: true });
+          x.drawImage(img, 0, 0, 8, 8);
+          const d = x.getImageData(0, 0, 8, 8).data;
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+            const w = 1 + (mx - mn) / 40; // favour colourful pixels over greys
+            r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; n += w;
+          }
+          const t = `${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)}`;
+          tones.set(url, t);
+          if (!dead) setTone(t);
+        } catch { /* tainted or unsupported: no glow */ }
+      };
+      img.src = url;
+    };
+    const id = (window.requestIdleCallback || ((f) => setTimeout(f, 200)))(run);
+    return () => { dead = true; (window.cancelIdleCallback || clearTimeout)(id); };
+  }, [url]);
+  return tone;
+}
+
+// ---- who has a story right now (shared, refreshed at most once a minute) ----
+let liveCache = { t: 0, p: null };
+export function useLiveAuthors() {
+  const [set, setSet] = useState(null);
+  useEffect(() => {
+    if (!liveCache.p || Date.now() - liveCache.t > 60000) {
+      liveCache = { t: Date.now(), p: _sb.from('stories').select('author_id').gte('created_at', new Date(Date.now() - 864e5).toISOString()).then(({ data }) => new Set((data || []).map((x) => x.author_id))) };
+    }
+    let alive = true;
+    liveCache.p.then((s) => alive && setSet(s));
+    return () => { alive = false; };
+  }, []);
+  return set || new Set();
 }
 
 // course → one of the four Spark colours (stable)

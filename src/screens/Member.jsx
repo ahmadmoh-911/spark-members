@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, membershipNo, supabase } from '../lib/supabase.js';
-import { go, peek, isMorphing } from '../lib/router.js';
-import { Photo, TierRow, Tick, SkLines, Empty, CountUp, celebrate, courseColor } from '../ui.jsx';
+import { go, peek } from '../lib/router.js';
+import { Photo, TierRow, Tick, SkLines, Empty, CountUp, celebrate, courseColor, usePhotoTone } from '../ui.jsx';
+import { onScrollFrame } from '../gestures.js';
 import ProfileForm from './ProfileForm.jsx';
 import Works from './Works.jsx';
-import { StoryGrid } from './Stories.jsx';
+import { StoryGrid, Viewer, STORY_SELECT } from './Stories.jsx';
 import { JoinCard } from './Join.jsx';
 import Certificate from '../Certificate.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
@@ -63,7 +65,6 @@ export default function Member({ id }) {
   const [doc, setDoc] = useState(null);
   const [qr, setQr] = useState(false);
   const [tab, setTab] = useState('about');
-  const [morph] = useState(() => isMorphing());
 
   useEffect(() => {
     let alive = true;
@@ -94,6 +95,29 @@ export default function Member({ id }) {
     } catch { /* ignore */ }
   }, [own, d?.certs?.length]);
 
+  // live story → coloured ring on the avatar; tap it to watch
+  const [live, setLive] = useState([]);
+  const [watching, setWatching] = useState(false);
+  useEffect(() => {
+    supabase.from('stories').select(STORY_SELECT).eq('author_id', id).gte('created_at', new Date(Date.now() - 864e5).toISOString()).order('created_at')
+      .then(({ data }) => setLive(data || []));
+  }, [id, watching]);
+
+  // a soft glow in the photo's own colour
+  const tone = usePhotoTone(d?.p?.photo_url ?? peek.get(id)?.photo_url);
+
+  // native-feeling header: the cover drifts slower than the page, and once the photo
+  // scrolls away a mini name+photo slides into the top bar (no React re-renders while scrolling)
+  const coverRef = useRef(null), avRef = useRef(null), miniRef = useRef(null);
+  const ready = !!(d?.p || peek.get(id));
+  useEffect(() => {
+    if (!ready) return;
+    const stop = onScrollFrame((y) => { if (coverRef.current && y < 400) coverRef.current.style.transform = `translateY(${y * 0.35}px)`; });
+    const io = new IntersectionObserver(([e]) => miniRef.current?.classList.toggle('on', !e.isIntersecting && e.boundingClientRect.bottom < 90), { rootMargin: '-72px 0px 0px 0px' });
+    if (avRef.current) io.observe(avRef.current);
+    return () => { stop(); io.disconnect(); miniRef.current?.classList.remove('on'); };
+  }, [ready, id]);
+
   if (err) return <><BackBtn /><div className="err" role="alert">{err}</div></>;
   const pk = peek.get(id);
   const p = d?.p || (d ? null : pk);
@@ -107,15 +131,28 @@ export default function Member({ id }) {
   return (
     <>
       {!own && <BackBtn />}
-      <section className="pcard glass" style={{ marginTop: own ? 6 : 0 }}>
-        <div className={`pcover ${p.cover_url ? 'has-img' : ''}`} aria-hidden="true">
-          {p.cover_url ? <img src={p.cover_url} alt="" /> : <><i /><i /><i /><i /></>}
+      {createPortal(
+        <div className="minihead" ref={miniRef} aria-hidden="true">
+          <Photo url={p.photo_url} id={p.id} /><b>{p.full_name}</b>
+        </div>, document.body)}
+      <section className={`pcard glass ${tone ? 'toned' : ''}`} style={{ marginTop: own ? 6 : 0, ...(tone ? { '--tone': tone } : null) }}>
+        <div className="pcover-wrap">
+          <div ref={coverRef} className={`pcover ${p.cover_url ? 'has-img' : ''}`} aria-hidden="true">
+            {p.cover_url ? <img src={p.cover_url} alt="" /> : <><i /><i /><i /><i /></>}
+          </div>
         </div>
         <div className="pbody">
-          <span className="avatar big pav">
-            <span className="ring" /><span className="gap" />
-            <Photo url={p.photo_url} id={p.id} {...(morph ? { 'data-morph': '' } : {})} style={morph ? { viewTransitionName: 'morph' } : undefined} />
-          </span>
+          {live.length > 0 ? (
+            <button ref={avRef} className="avatar big pav live press" onClick={() => setWatching(true)} aria-label={`شوف ستوري ${p.full_name}`}>
+              <span className="ring" /><span className="gap" />
+              <Photo url={p.photo_url} id={p.id} />
+            </button>
+          ) : (
+            <span ref={avRef} className="avatar big pav">
+              <span className="ring" /><span className="gap" />
+              <Photo url={p.photo_url} id={p.id} />
+            </span>
+          )}
           <h1 className="pname">
             {p.full_name}
             {courses.length >= 2 && <Tick />}
@@ -233,6 +270,7 @@ export default function Member({ id }) {
         </Sheet>
       )}
       {qr && <QrSheet p={p} onClose={() => setQr(false)} />}
+      {watching && live.length > 0 && <Viewer groups={[{ author: live[0].author, stories: live }]} start={0} onClose={() => setWatching(false)} />}
       {doc && (
         <Sheet title={`شهادة ${doc.title}`} onClose={() => setDoc(null)}>
           {doc.certificate_url ? (

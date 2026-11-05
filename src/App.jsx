@@ -12,7 +12,8 @@ import Panel from './screens/Panel.jsx';
 import Install from './Install.jsx';
 import AppUpdate from './AppUpdate.jsx';
 import Help, { HelpFab } from './screens/Help.jsx';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { installPullToRefresh, installSwipeNav } from './gestures.js';
 
 const NAV = [
   { id: 'students', label: 'الطلاب', icon: <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.6-3.4 3-5.2 6-5.2s5.4 1.8 6 5.2" /><circle cx="17" cy="9" r="2.4" /><path d="M16.5 13.9c2.3.2 4 1.6 4.5 4.6" /></> },
@@ -48,8 +49,10 @@ function TopBar() {
 }
 
 function BottomBar({ tab }) {
+  const i = NAV.findIndex((n) => n.id === tab);
   return (
     <nav className="bottom glass" aria-label="الأقسام">
+      {i >= 0 && <span className="bind" style={{ '--i': i }} aria-hidden="true" />}
       {NAV.map((n) => (
         <button key={n.id} className="press" aria-current={tab === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
           <svg viewBox="0 0 24 24" aria-hidden="true">{n.icon}</svg>{n.label}
@@ -62,6 +65,13 @@ function BottomBar({ tab }) {
 export default function App() {
   const { ready, user, needsOnboarding } = useAuth();
   const route = useRoute();
+  const [refresh, setRefresh] = useState(0);
+
+  // native-app gestures: pull to refresh, swipe between tabs / back
+  useEffect(() => {
+    installPullToRefresh(() => setRefresh((n) => n + 1));
+    installSwipeNav();
+  }, []);
 
   // hand over from the HTML splash once the session is known (shown at least ~1.8s, never extra after that)
   useEffect(() => {
@@ -95,7 +105,7 @@ export default function App() {
       <Light />
       <TopBar />
       <main className="wrap gut">
-        <div key={route.key ?? 'first'} className={`view ${route.anim}`}>{body}</div>
+        <div key={`${route.key ?? 'first'}-${refresh}`} className={`view ${refresh && route.anim !== 'no-anim' ? 'tab-anim' : route.anim}`}>{body}</div>
       </main>
       {!needsOnboarding && <BottomBar tab={route.tab} />}
       <Install />

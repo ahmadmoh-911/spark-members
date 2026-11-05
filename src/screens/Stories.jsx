@@ -8,6 +8,7 @@ import { Sheet, Toast } from '../sheet.jsx';
 
 const DAY = 24 * 60 * 60 * 1000;
 const SELECT = 'id,author_id,course_id,kind,body,media_url,created_at,author:profiles!stories_author_id_fkey(id,full_name,photo_url),course:courses(title,category)';
+export const STORY_SELECT = SELECT;
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 
 export function ago(t) {
@@ -131,51 +132,94 @@ export default function Stories() {
   const mine = groups?.find((g) => g.author?.id === user?.id);
   const others = groups?.filter((g) => g.author?.id !== user?.id) || [];
   const canPost = postable.length > 0;
+  // every live story as a tile, newest first (fills the page instead of a few lonely circles)
+  const tiles = (groups || []).flatMap((g) => g.stories).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const openTile = (st) => {
+    const gi = groups.findIndex((g) => g.author?.id === st.author_id);
+    setOpen({ list: groups, i: gi, si: groups[gi].stories.findIndex((x) => x.id === st.id) });
+  };
 
   return (
     <>
-      <div className="head"><div><h1>الستوريات</h1><p>ستوريات أعضاء الدورات خلال آخر 24 ساعة</p></div>
-        {canPost && <button className="pbtn primary press" onClick={() => setComposing(true)}>+ ستوري جديدة</button>}
-      </div>
+      <div className="head"><div><h1>الستوريات</h1><p>شو صار اليوم بدورات سبارك · آخر 24 ساعة</p></div></div>
       {err && <div className="err" role="alert">{err}</div>}
-      {!groups && !err ? <Spinner /> : (
-        <div className="rings glass">
-          {canPost && (
-            <button className="sring press" onClick={() => (mine ? setOpen({ list: groups, i: 0 }) : setComposing(true))}>
-              <span className={`avatar ${mine ? '' : 'noring'}`} style={{ position: 'relative' }}>
-                <span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} />
-                {!mine && <span className="add" aria-hidden="true">+</span>}
-              </span>
-              {mine ? 'ستوريك' : 'أضف ستوري'}
-            </button>
+
+      {canPost && (
+        <button className="compose glass press" onClick={() => setComposing('text')}>
+          <span className={`avatar ${mine ? '' : 'noring'}`}><span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} /></span>
+          <span className="cq">شو عملت اليوم بالدورة؟</span>
+          <span className="ck" aria-hidden="true">
+            <span onClick={(e) => { e.stopPropagation(); setComposing('image'); }}>🖼️</span>
+            <span onClick={(e) => { e.stopPropagation(); setComposing('video'); }}>🎬</span>
+          </span>
+        </button>
+      )}
+
+      {!groups && !err ? (
+        <>
+          <div className="strip"><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /></div>
+          <div className="tiles">{[0, 1, 2, 3].map((i) => <div key={i} className="sk sk-tile" />)}</div>
+        </>
+      ) : (
+        <>
+          {groups.length > 0 && (
+            <div className="strip" aria-label="مين نزّل اليوم">
+              {mine && (
+                <button className="sring press" onClick={() => setOpen({ list: groups, i: 0 })}>
+                  <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} /></span>
+                  <span className="nm">ستوريك</span>
+                </button>
+              )}
+              {others.map((g) => (
+                <button key={g.author.id} className="sring press" onClick={() => setOpen({ list: groups, i: groups.indexOf(g) })}>
+                  <span className={`avatar ${g.stories.every((s) => seen.has(s.id)) ? 'seen' : ''}`}><span className="ring" /><span className="gap" /><Photo url={g.author.photo_url} id={g.author.id} /></span>
+                  <span className="nm">{g.author.full_name?.split(' ')[0]}</span>
+                </button>
+              ))}
+            </div>
           )}
-          {others.map((g) => {
-            const all = g.stories.every((s) => seen.has(s.id));
-            return (
-              <button key={g.author.id} className="sring press" onClick={() => setOpen({ list: groups, i: groups.indexOf(g) })}>
-                <span className={`avatar ${all ? 'seen' : ''}`}><span className="ring" /><span className="gap" /><Photo url={g.author.photo_url} id={g.author.id} /></span>
-                <span style={{ maxWidth: 88, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.author.full_name?.split(' ')[0]}</span>
-              </button>
-            );
-          })}
-          {!others.length && !canPost && <div style={{ gridColumn: '1/-1' }}><Empty art="stories" title="هدوء اليوم 😴" text="ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي." /></div>}
-          {!others.length && canPost && !mine && <p style={{ alignSelf: 'center', color: 'var(--muted)', fontSize: 14, gridColumn: 'span 3' }}>كون أول واحد بينزّل ستوري اليوم.</p>}
-        </div>
+
+          {tiles.length > 0 ? (
+            <div className="tiles">
+              {tiles.map((st, i) => (
+                <button key={st.id} className={`tile press ${seen.has(st.id) || st.author_id === user?.id ? '' : 'new'}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} onClick={() => openTile(st)}>
+                  {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
+                  {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+                  {st.kind === 'text' && <span className="ttxt">{st.body}</span>}
+                  <span className="tmeta">
+                    <Photo url={st.author?.photo_url} id={st.author_id} />
+                    <span><b>{st.author?.full_name?.split(' ')[0]}</b>{ago(st.created_at)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <section className="sec glass">
+              <Empty art="stories" title={canPost ? 'كون أول واحد اليوم ✨' : 'هدوء اليوم 😴'} text={canPost ? 'نزّل ستوري عن شو تعلمت، وبتنحسب بتفاعلك بالدورة.' : 'ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي.'} />
+            </section>
+          )}
+        </>
       )}
       {!user && <div className="note glass">بتقدر تتفرج بدون دخول. لتنزّل ستوري لازم تكون عضو بدورة بلّشت.</div>}
       {user && !canPost && profile?.role === 'student' && <div className="note glass">بتقدر تنزّل ستوريات لما تبلّش دورتك.</div>}
 
-      {open && <Viewer groups={open.list} start={open.i} onClose={() => { setOpen(null); load(); }} onDeleted={() => setMsg('انحذفت الستوري')} />}
-      {composing && <Composer courses={postable} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
+      {canPost && createPortal(
+        <button className="sfab press" onClick={() => setComposing('text')} aria-label="ستوري جديدة">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>, document.body
+      )}
+
+      {open && <Viewer groups={open.list} start={open.i} startStory={open.si || 0} onClose={() => { setOpen(null); load(); }} onDeleted={() => setMsg('انحذفت الستوري')} />}
+      {composing && <Composer courses={postable} initialKind={composing} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
       <Toast msg={msg} onDone={() => setMsg('')} />
     </>
   );
 }
 
 // ---------- composer ----------
-function Composer({ courses, onClose, onPosted }) {
+function Composer({ courses, initialKind = 'text', onClose, onPosted }) {
   const { user } = useAuth();
-  const [kind, setKind] = useState('text');
+  const [kind, setKind] = useState(typeof initialKind === 'string' ? initialKind : 'text');
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [course, setCourse] = useState(courses.find((c) => !c.end_date || c.end_date >= new Date().toLocaleDateString('en-CA'))?.course_id ?? courses[0]?.course_id);
