@@ -418,7 +418,7 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
       <article key={`${gi}-${s.id}`} className={`story ${anim}`}
         onPointerDown={(e) => {
           x0.current = e.clientX;
-          if (e.target.closest('.shead,.sfoot,.confirm,.react')) return;
+          if (e.target.closest('.shead,.sbar,.confirm')) return;
           hold.current.held = false;
           hold.current.t = setTimeout(() => { hold.current.held = true; setPaused(true); }, 220);
         }}
@@ -432,11 +432,16 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
         onPointerCancel={() => { clearTimeout(hold.current.t); if (hold.current.held) setPaused(false); }}
         onContextMenu={(e) => e.preventDefault()}>
         <div className="bg" style={{ background: '#000' }} />
-        {s.kind === 'image' && <img src={s.media_url} alt={s.body || 'صورة ستوري'} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />}
-        {s.kind === 'video' && (
-          <video ref={video} src={s.media_url} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
-            onLoadedMetadata={(e) => setDur(Math.min(60, e.currentTarget.duration || 15))} onEnded={() => step(1)} />
-        )}
+        {/* the story itself gets all the space between the header and the bottom bar */}
+        <div className="smid">
+          {s.kind === 'image' && <img src={s.media_url} alt={s.body || 'صورة ستوري'} />}
+          {s.kind === 'video' && (
+            <video ref={video} src={s.media_url} autoPlay playsInline
+              onLoadedMetadata={(e) => setDur(Math.min(60, e.currentTarget.duration || 15))} onEnded={() => step(1)} />
+          )}
+          {s.kind === 'text' && <div className="txt2">{s.body}</div>}
+        </div>
+        {s.kind !== 'text' && s.body && <p className="cap2">{s.body}</p>}
         <div className="progress">
           {g.stories.map((x, k) => <span key={x.id} className={k < si ? 'done' : k === si ? 'now' : ''}><i style={k === si ? { animationDuration: `${dur}s`, animationPlayState: halted ? 'paused' : 'running' } : undefined} /></span>)}
         </div>
@@ -447,29 +452,31 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
           </button>
           <button ref={closeBtn} className="cbtn press" onClick={close} aria-label="إغلاق"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         </header>
-        {s.kind === 'text' ? <div className="txt">{s.body}</div> : s.body ? <p className="cap">{s.body}</p> : null}
         <button className="tap r" onClick={() => !hold.current.held && step(-1)} aria-label="السابقة" />
         <button className="tap mid" onClick={() => !hold.current.held && setPaused((p) => !p)} aria-label={paused ? 'تشغيل' : 'إيقاف مؤقت'} aria-pressed={paused} />
         <button className="tap l" onClick={() => !hold.current.held && step(1)} aria-label="التالية" />
-        {(mine || isAdmin) && (
-          <footer className="sfoot">
-            {views != null ? (
-              <span className="gbtn" role="status" aria-label={`شافها ${views}`}>
+        {/* one bottom bar, under the story: views/reaction totals · reactions · delete */}
+        {(mine || isAdmin || user) && (
+          <footer className="sbar">
+            {(mine || isAdmin) && views != null ? (
+              <span className="gbtn stat" role="status" aria-label={`شافها ${views}`}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>{views}
                 {reacts?.length > 0 && <span className="rsum">{reacts.map((r) => <span key={r.emoji}>{r.emoji}{r.n}</span>)}</span>}
               </span>
             ) : <span />}
-            <button className="gbtn press" onClick={() => setAsk(true)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>حذف
-            </button>
+            {user && !mine && (
+              <span className="react2" role="group" aria-label="تفاعل مع الستوري">
+                {['❤️', '👏', '🔥', '🎉'].map((e) => (
+                  <button key={e} className={myReact === e ? 'on' : ''} aria-pressed={myReact === e} aria-label={`تفاعل ${e}`} onClick={() => react(e)}>{e}</button>
+                ))}
+              </span>
+            )}
+            {(mine || isAdmin) ? (
+              <button className="gbtn press" onClick={() => setAsk(true)} aria-label="حذف الستوري">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>{mine ? 'حذف' : ''}
+              </button>
+            ) : <span />}
           </footer>
-        )}
-        {user && !mine && !ask && (
-          <div className={`react ${isAdmin ? 'up' : ''}`} role="group" aria-label="تفاعل مع الستوري">
-            {['❤️', '👏', '🔥', '🎉'].map((e) => (
-              <button key={e} className={myReact === e ? 'on' : ''} aria-pressed={myReact === e} aria-label={`تفاعل ${e}`} onClick={() => react(e)}>{e}</button>
-            ))}
-          </div>
         )}
         {burst && <span key={burst.k} className="burst" aria-hidden="true">{burst.emoji}</span>}
         {ask && (

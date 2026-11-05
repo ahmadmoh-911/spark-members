@@ -597,6 +597,20 @@ button,a,.press{touch-action:manipulation}
 .scard .ov{background:linear-gradient(0deg,rgba(6,14,28,.9),rgba(6,14,28,.55) 55%,transparent)}
 /* profile cover photo */
 .pcover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* story layout: header · story (as big as possible) · caption · one bottom bar — nothing covers the picture */
+.story{display:flex;flex-direction:column;padding-top:70px}
+.smid{position:relative;flex:1;min-height:0;z-index:0}
+.smid img,.smid video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.txt2{position:absolute;inset:8px 22px;display:grid;place-items:center;text-align:center;font-family:var(--display);font-size:22px;font-weight:700;line-height:1.7;overflow:auto}
+.cap2{position:relative;z-index:2;margin:8px 12px 0;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.12);font-size:15px;line-height:1.6;max-height:28%;overflow:auto;flex:none}
+.sbar{position:relative;z-index:3;flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 12px;min-height:64px}
+.sbar .stat{flex:none}
+.react2{display:flex;gap:2px;margin:0 auto;padding:3px;border-radius:999px;background:rgba(255,255,255,.12)}
+.react2 button{width:42px;height:42px;border:0;border-radius:50%;background:transparent;font-size:22px;line-height:1;cursor:pointer;transition:transform .25s var(--spring),background .2s}
+.react2 button:active{transform:scale(.85)}
+.react2 button.on{background:rgba(255,255,255,.3);transform:scale(1.12)}
+.sbar .gbtn{height:42px}
+.story .tap{bottom:76px}
 /* story reactions */
 .react{position:absolute;z-index:3;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(0,0,0,.35);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .react.up{bottom:72px}
