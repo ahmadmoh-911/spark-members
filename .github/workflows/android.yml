@@ -39,6 +39,11 @@ jobs:
       - name: Generate project
         working-directory: android
         run: yes "" | bubblewrap update --skipVersionUpgrade --manifest ./twa-manifest.json
+      - name: Turn off code shrinking (R8 renames a component the TWA library enables by name → crash on launch)
+        working-directory: android
+        run: |
+          sed -i 's/minifyEnabled true/minifyEnabled false/; s/shrinkResources true/shrinkResources false/' app/build.gradle
+          grep -nE "minifyEnabled|shrinkResources" app/build.gradle || true
       - name: Build
         working-directory: android
         env:
