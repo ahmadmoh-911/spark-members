@@ -19,7 +19,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli@1.24.1
+        run: npm install -g @bubblewrap/cli@1.27.0
       - name: Restore signing key
         working-directory: android
         run: echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > spark.keystore
