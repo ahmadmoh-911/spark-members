@@ -434,3 +434,39 @@ html.app .top,html.app .bottom,html.app button{-webkit-user-select:none;user-sel
 .srow .t{flex:1;min-width:0;display:grid;line-height:1.35}
 .srow .t b{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .srow .t span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+/* ===== Spark certificate (fixed design, scales with its width) ===== */
+.certx{container-type:inline-size;width:100%;aspect-ratio:1.414;background:#FFFFFF;border-radius:14px;box-shadow:0 10px 30px rgba(11,26,51,.12);overflow:hidden;color:#0B1A33;font-family:var(--display)}
+.cx-in{position:relative;height:100%;margin:2.2cqw;border:.35cqw solid #134F96;border-radius:1.2cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3cqw 6cqw 6cqw;
+  background:radial-gradient(60% 50% at 100% 0,rgba(244,123,32,.07),transparent 70%),radial-gradient(60% 50% at 0 100%,rgba(75,180,84,.08),transparent 70%),#FFFFFF;box-sizing:border-box;height:calc(100% - 4.4cqw)}
+.cx-in::before{content:"";position:absolute;inset:1.1cqw;border:.12cqw solid rgba(19,79,150,.35);border-radius:.8cqw;pointer-events:none}
+.cx-corner{position:absolute;width:16cqw;height:16cqw;pointer-events:none}
+.cx-corner.tr{top:-.35cqw;right:-.35cqw;background:linear-gradient(225deg,#F47B20 0 18%,#FFCD05 18% 26%,transparent 26%)}
+.cx-corner.bl{bottom:-.35cqw;left:-.35cqw;background:linear-gradient(45deg,#4BB454 0 18%,#134F96 18% 26%,transparent 26%)}
+.cx-dots{position:absolute;top:4cqw;left:5cqw;display:grid;grid-template-columns:repeat(3,1.3cqw);gap:.9cqw}
+.cx-dots i{width:1.3cqw;height:1.3cqw;border-radius:50%;background:#4BB454}
+.cx-dots i:nth-child(2),.cx-dots i:nth-child(6){background:#134F96}.cx-dots i:nth-child(3),.cx-dots i:nth-child(4){background:#F47B20}.cx-dots i:nth-child(5){background:#FFCD05}
+.cx-logo{height:7.5cqw;width:auto;margin-bottom:1.2cqw}
+.cx-kicker{font-size:4.6cqw;font-weight:700;color:#134F96;letter-spacing:.02em;line-height:1.3}
+.cx-line{font-size:2.1cqw;color:#334155;margin-top:1.4cqw}
+.cx-name{font-size:5.4cqw;font-weight:700;line-height:1.3;margin-top:.6cqw;padding:0 2cqw .6cqw;border-bottom:.25cqw solid #FFCD05;max-width:90%;overflow-wrap:anywhere}
+.cx-course{font-size:3.3cqw;font-weight:600;color:#F47B20;margin-top:.6cqw;max-width:90%;line-height:1.35}
+.cx-foot{position:absolute;bottom:5.5cqw;left:6cqw;right:6cqw;display:flex;justify-content:space-between;align-items:flex-end}
+.cx-foot>div:not(.cx-seal){display:grid;gap:.4cqw;min-width:22cqw}
+.cx-foot b{font-size:1.9cqw;font-weight:600;padding-bottom:.6cqw;border-bottom:.15cqw solid #94A3B8}
+.cx-foot span{font-size:1.5cqw;color:#5B6578}
+.cx-seal{width:10cqw;height:10cqw;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#4BB454,#134F96,#F47B20,#FFCD05,#4BB454);padding:.5cqw}
+.cx-seal span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:#FFFFFF;font-size:1.9cqw;font-weight:700;color:#134F96;box-shadow:inset 0 0 0 .3cqw rgba(19,79,150,.2)}
+.cx-code{position:absolute;bottom:2.2cqw;left:0;right:0;text-align:center;font-size:1.3cqw;color:#94A3B8;letter-spacing:.08em;font-family:ui-monospace,monospace}
+/* certificates on the profile: big, course name under */
+.certs{display:grid;gap:16px}
+@media (min-width:900px){.certs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ccert{display:grid;gap:10px;justify-items:center;animation:rise .45s var(--ease) both}
+.ccert .open{display:block;width:100%;border:0;padding:0;background:transparent;border-radius:14px;cursor:zoom-in}
+.ccert .file{width:100%;border-radius:14px;box-shadow:0 10px 30px rgba(11,26,51,.12);display:block;background:#fff}
+.ccert h3{font-size:17px;font-weight:700;text-align:center}
+.ccert .pdf{display:grid;place-items:center;gap:6px;width:100%;aspect-ratio:1.414;border-radius:14px;background:#fff;box-shadow:0 10px 30px rgba(11,26,51,.12);text-decoration:none;color:#D64535;font-weight:700}
+
+.bulk{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:14px;background:var(--chip);margin-bottom:10px}
+.rowpick{width:22px;height:22px;flex:none;accent-color:var(--blue)}
+.hascert{flex:none;font-size:18px;width:22px;text-align:center}
+.pcols:has(> div:empty){grid-template-columns:1fr}.pcols > div:empty{display:none}

@@ -7,29 +7,13 @@ import ProfileForm from './ProfileForm.jsx';
 import Works from './Works.jsx';
 import { ArchiveButton } from './Stories.jsx';
 import { JoinCard } from './Join.jsx';
+import Certificate from '../Certificate.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 const ROLE = { admin: 'إدارة', trainer: 'مدرب' };
 
 const isPdf = (u = '') => /\.pdf($|\?)/i.test(u);
-// certificate file thumbnail: image preview, PDF badge, or the Spark logo when there's no file
-function CertThumb({ c, onOpen }) {
-  if (!c.certificate_url) return <span className="seal"><img src={LOGO_DARK} alt="" /></span>;
-  if (isPdf(c.certificate_url)) {
-    return (
-      <a className="seal press" href={c.certificate_url} target="_blank" rel="noopener" aria-label={`افتح شهادة ${c.title} (PDF)`} style={{ textDecoration: 'none', color: '#D64535', fontWeight: 700, fontSize: 13, flexDirection: 'column' }}>
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></svg>PDF
-      </a>
-    );
-  }
-  return (
-    <button className="seal press" onClick={onOpen} aria-label={`اعرض شهادة ${c.title}`} style={{ border: 0, padding: 0, overflow: 'hidden', cursor: 'zoom-in' }}>
-      <img src={c.certificate_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-    </button>
-  );
-}
-
 export function BackBtn({ to = 'students' }) {
   return (
     <button className="back glass press" onClick={() => (history.length > 1 ? history.back() : go(to))}>
@@ -133,28 +117,33 @@ export default function Member({ id }) {
           </section>
         </div>
         <div style={{ display: 'grid', gap: 12 }}>
-          <section className="sec glass">
-            <h2>شهادات سبارك</h2>
-            <div className="list">
-              {certs.map((c) => (
-                <div key={c.course_id} className="cert">
-                  <div className="cert-top">
-                    <CertThumb c={c} onOpen={() => setDoc(c)} />
-                    <div style={{ minWidth: 0 }}>
-                      <b>{c.title}</b>
-                      {c.category && <span className="code" style={{ direction: 'rtl' }}>{c.category}</span>}
-                      <span className="code">{c.certificate_code}</span>
-                    </div>
-                  </div>
-                  <TierRow tier={c.tier} />
-                </div>
-              ))}
-              {!certs.length && <p className="empty" style={{ padding: 12 }}>الشهادات بتظهر هون بعد ما تنتهي الدورة.</p>}
-            </div>
-          </section>
           <Works works={works} own={own} ownerId={id} onChange={() => setTick((t) => t + 1)} toast={setMsg} />
         </div>
       </div>
+      <section className="sec glass" style={{ marginTop: 12 }}>
+        <h2>شهادات سبارك</h2>
+        <div className="certs">
+          {certs.map((c, i) => (
+            <div key={c.course_id} className="ccert" style={{ animationDelay: `${i * 60}ms` }}>
+              {c.certificate_url && isPdf(c.certificate_url) ? (
+                <a className="pdf press" href={c.certificate_url} target="_blank" rel="noopener">
+                  <svg viewBox="0 0 24 24" width="44" height="44" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></svg>افتح الشهادة (PDF)
+                </a>
+              ) : (
+                <button className="open press" onClick={() => setDoc(c)} aria-label={`كبّر شهادة ${c.title}`}>
+                  {c.certificate_url
+                    ? <img className="file" src={c.certificate_url} alt={`شهادة ${c.title}`} />
+                    : <Certificate name={p.full_name} course={c.title} date={c.certificate_date} code={c.certificate_code} trainer={c.trainer_name} />}
+                </button>
+              )}
+              <h3>{c.title}</h3>
+              <TierRow tier={c.tier} />
+            </div>
+          ))}
+        </div>
+        {!certs.length && <p className="empty" style={{ padding: 12 }}>الشهادات بتظهر هون بعد ما تنتهي الدورة.</p>}
+      </section>
+
       {own && p.role === 'student' && (
         <div className="lock">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
@@ -168,8 +157,12 @@ export default function Member({ id }) {
       )}
       {doc && (
         <Sheet title={`شهادة ${doc.title}`} onClose={() => setDoc(null)}>
-          <img src={doc.certificate_url} alt={`شهادة ${doc.title}`} style={{ width: '100%', borderRadius: 16, display: 'block' }} />
-          <a className="ghost press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none', color: 'inherit' }} href={doc.certificate_url} target="_blank" rel="noopener">افتح بحجم كامل</a>
+          {doc.certificate_url ? (
+            <>
+              <img src={doc.certificate_url} alt={`شهادة ${doc.title}`} style={{ width: '100%', borderRadius: 16, display: 'block' }} />
+              <a className="ghost press" style={{ display: 'grid', placeItems: 'center', textDecoration: 'none', color: 'inherit' }} href={doc.certificate_url} target="_blank" rel="noopener">افتح بحجم كامل</a>
+            </>
+          ) : <Certificate name={p.full_name} course={doc.title} date={doc.certificate_date} code={doc.certificate_code} trainer={doc.trainer_name} />}
         </Sheet>
       )}
       <Toast msg={msg} onDone={() => setMsg('')} />

@@ -5,6 +5,7 @@ import { Photo, Spinner } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 import { courseStatus, coverStyle } from './Courses.jsx';
 import { Requests } from './Join.jsx';
+import Certificate from '../Certificate.jsx';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIER = { silver: 'فضي', gold: 'ذهبي', diamond: 'ماسي' };
@@ -171,6 +172,16 @@ function CourseManage({ c: initial, onBack, toast }) {
   };
   const [cert, setCert] = useState(null);
   const ended = courseStatus(c) === 'انتهت';
+  // bulk certificates: pick students (or all), issue in one go
+  const [sel, setSel] = useState(new Set());
+  const eligible = (rows || []).filter((r) => r.student_id && !r.certificate_code);
+  const toggleSel = (id) => { const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n); };
+  const allSel = eligible.length > 0 && eligible.every((r) => sel.has(r.id));
+  const issueMany = async () => {
+    const ids = [...sel];
+    const { data, error } = await supabase.rpc('issue_certificates', { p_enrollments: ids });
+    if (error) toast(friendlyError(error)); else { toast(`انصدرت ${data} شهادة`); setSel(new Set()); load(); }
+  };
 
   return (
     <>
@@ -199,12 +210,28 @@ function CourseManage({ c: initial, onBack, toast }) {
 
       <section className="sec glass" style={{ marginTop: 12 }}>
         <h2>الطلاب {rows ? `(${rows.length})` : ''}</h2>
+        {isAdmin && eligible.length > 0 && (
+          <div className="bulk">
+            <label className="jconfirm" style={{ marginTop: 0 }}>
+              <input type="checkbox" checked={allSel} onChange={() => setSel(allSel ? new Set() : new Set(eligible.map((r) => r.id)))} />
+              <span>حدّد الكل ({eligible.length} بدون شهادة)</span>
+            </label>
+            <button className="save press" disabled={!sel.size} onClick={() => setConfirm({
+              text: `إصدار ${sel.size} شهادة لدورة «${c.title}»؟${ended ? '' : ' (الدورة لسا ما انتهت)'}${rows.some((r) => sel.has(r.id) && r.trainer_stars == null) ? ' — في طلاب لسا ما قيّمهم المدرب بالنجوم.' : ''}`,
+              go: issueMany,
+            })}>إصدار شهادات{sel.size ? ` (${sel.size})` : ''}</button>
+          </div>
+        )}
         {err && <div className="err" role="alert">{err}</div>}
         {!rows && !err ? <Spinner /> : (
           <div className="list">
             {rows?.map((r) => (
               <div key={r.id} className="erow">
                 <div className="top-line">
+                  {isAdmin && r.student_id && !r.certificate_code && (
+                    <input type="checkbox" className="rowpick" aria-label={`حدّد ${r.full_name}`} checked={sel.has(r.id)} onChange={() => toggleSel(r.id)} />
+                  )}
+                  {isAdmin && r.certificate_code && <span className="hascert" title="عنده شهادة" aria-label="عنده شهادة">🎓</span>}
                   <Photo url={r.photo_url} id={r.student_id || r.email} />
                   <span style={{ minWidth: 0 }}>
                     <b style={{ display: 'block' }}>{r.full_name || 'لسا ما سجّل'}</b>
@@ -270,6 +297,12 @@ function CertSheet({ c, r, ended, onClose, onDone }) {
   return (
     <Sheet title={issued ? 'شهادة الطالب' : 'إصدار شهادة'} onClose={onClose}>
       <p style={{ margin: '0 0 8px' }}><b>{r.full_name}</b> · {c.title}</p>
+      {!file && !r.certificate_url && (
+        <div style={{ margin: '4px 0 12px' }}>
+          <Certificate name={r.full_name} course={c.title} date={new Date().toLocaleDateString('en-CA')} code={r.certificate_code || code} trainer={null} />
+          <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0', textAlign: 'center' }}>هيك رح تطلع الشهادة بصفحة الطالب</p>
+        </div>
+      )}
       {issued && <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--muted)' }}>رقم الشهادة <span dir="ltr">{r.certificate_code}</span> · التصنيف الحالي: {r.tier ? TIER[r.tier] : 'بدون تصنيف'}</p>}
       {!ended && !issued && <div className="hidden-note" style={{ marginTop: 0 }}>الدورة لسا ما انتهت.</div>}
       {r.trainer_stars == null && <div className="hidden-note">المدرب لسا ما قيّم هالطالب بالنجوم، فتقييمه بينحسب صفر لحد ما يقيّمه.</div>}
@@ -281,7 +314,7 @@ function CertSheet({ c, r, ended, onClose, onDone }) {
         {file && <span style={{ fontSize: 13, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} dir="ltr">{file.name}</span>}
         {!file && r.certificate_url && <a className="link" href={r.certificate_url} target="_blank" rel="noopener" style={{ display: 'inline-grid', placeItems: 'center', color: 'var(--blue)' }}>اعرض الملف</a>}
       </div>
-      <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>اختياري. إذا ما أرفقت ملف، بيظهر شعار سبارك مكانه.</p>
+      <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>اختياري. إذا ما أرفقت ملف، بتطلع شهادة سبارك بالتصميم الثابت.</p>
       {err && <div className="err" role="alert">{err}</div>}
       {!issued
         ? <button className="cta press" disabled={busy} onClick={() => save({ certificate_code: code }, 'انصدرت الشهادة')}>{busy ? 'جارٍ…' : 'أصدر الشهادة'}</button>
