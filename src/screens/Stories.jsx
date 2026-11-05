@@ -157,89 +157,84 @@ export default function Stories() {
   );
 }
 
-// ---------- cylinder ----------
-// One card per person, bent round a cylinder in the middle of the screen. Slide it (or the pointer
-// under it, or tap a face above it) to bring someone to the front; tap the front card to watch.
+// ---------- wheel ----------
+// Faces only, on a half-circle that turns like a watch crown: the one in the middle is sharp,
+// the rest fade down the arc to both sides. Tap the middle face to watch; tap another to turn to it.
+const SPACING = 96, ARC = 0.5, RADIUS = 190;
+const arcY = (d) => (1 - Math.cos(Math.max(-3.1, Math.min(3.1, d)) * ARC)) * RADIUS;
 function Cylinder({ groups, seen, me, canPost, mine, myPhoto, onOpen, onAdd }) {
   const ref = useRef(null);
   const [cur, setCur] = useState(0);
-  const n = groups.length;
+  const [w, setW] = useState(360);
+  const items = canPost && !mine ? [{ add: true }, ...groups.map((g, gi) => ({ g, gi }))] : groups.map((g, gi) => ({ g, gi }));
+  const n = items.length;
   const paint = useCallback(() => {
     const el = ref.current; if (!el) return;
     const mid = el.scrollLeft + el.clientWidth / 2;
     let best = 0, bestD = 1e9;
     [...el.children].forEach((c, i) => {
-      const center = c.offsetLeft + c.offsetWidth / 2;
-      const d = (center - mid) / c.offsetWidth; // -1 … 1 per card
-      const k = Math.max(-2.2, Math.min(2.2, d));
-      c.style.transform = `perspective(900px) rotateY(${k * -38}deg) translateZ(${-Math.abs(k) * 70}px) scale(${1 - Math.min(Math.abs(k), 1.5) * 0.08})`;
-      c.style.opacity = String(1 - Math.min(Math.abs(k), 2) * 0.28);
-      if (Math.abs(d) < bestD) { bestD = Math.abs(d); best = i; }
+      const d = (c.offsetLeft + c.offsetWidth / 2 - mid) / SPACING;
+      const a = Math.abs(d);
+      c.style.transform = `translateY(${arcY(d)}px) rotate(${d * ARC * -57}deg) scale(${Math.max(0.5, 1.2 - a * 0.22)})`;
+      c.style.opacity = String(Math.max(0, 1 - a * 0.34));
+      if (a < bestD) { bestD = a; best = i; }
     });
-    setCur((p) => (p === best ? p : best));
+    setCur((p) => { if (p !== best && navigator.vibrate) try { navigator.vibrate(4); } catch { /* not allowed */ } return best; });
   }, []);
   useLayoutEffect(() => {
     const el = ref.current; if (!el) return;
     let raf = 0;
     const on = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); };
-    paint();
+    const size = () => { setW(el.clientWidth); on(); };
+    size();
     el.addEventListener('scroll', on, { passive: true });
-    window.addEventListener('resize', on);
-    return () => { el.removeEventListener('scroll', on); window.removeEventListener('resize', on); cancelAnimationFrame(raf); };
+    window.addEventListener('resize', size);
+    return () => { el.removeEventListener('scroll', on); window.removeEventListener('resize', size); cancelAnimationFrame(raf); };
   }, [paint, n]);
+  // start on the first person who actually has a story
+  useLayoutEffect(() => { if (items[0]?.add && n > 1) goTo(1, false); }, [n]); // eslint-disable-line react-hooks/exhaustive-deps
   const goTo = (i, smooth = true) => {
     const el = ref.current, c = el?.children[i]; if (!c) return;
     el.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - el.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' });
   };
-  if (!n) {
+  if (!groups.length) {
     return (
       <div className="stage">
-        {canPost && <div className="pick-row"><button className="pick add-me press" onClick={onAdd}><span className="avatar noring"><Photo url={myPhoto} id={me} /></span><i aria-hidden="true">+</i><span className="nm">أضف ستوري</span></button></div>}
+        {canPost && <button className="wadd press" onClick={onAdd}><span className="wface"><Photo url={myPhoto} id={me} /></span><i aria-hidden="true">+</i><b>أضف ستوري</b></button>}
         <section className="sec glass">
           <Empty art="stories" title={canPost ? 'كون أول واحد اليوم ✨' : 'هدوء اليوم 😴'} text={canPost ? 'نزّل ستوري عن شو تعلمت، وبتنحسب بتفاعلك بالدورة.' : 'ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي.'} />
         </section>
       </div>
     );
   }
+  // the faint half-circle the faces ride on
+  const pts = [];
+  for (let x = -w / 2; x <= w / 2; x += 6) pts.push(`${(x + w / 2).toFixed(0)},${(arcY(x / SPACING) + 66).toFixed(1)}`);
+  const it = items[cur] || items[0];
+  const isMe = it.g?.author?.id === me;
+  const last = it.g?.stories[it.g.stories.length - 1];
   return (
     <div className="stage">
-      <div className="pick-row cylpick" role="tablist" aria-label="مين نزّل اليوم">
-        {canPost && !mine && (
-          <button className="pick add-me press" onClick={onAdd} aria-label="أضف ستوري">
-            <span className="avatar noring"><Photo url={myPhoto} id={me} /></span><i aria-hidden="true">+</i><span className="nm">إلك</span>
-          </button>
-        )}
-        {groups.map((g, i) => {
-          const isMe = g.author?.id === me;
-          return (
-            <span key={g.author?.id || i} className={`pickw ${i === cur ? 'on' : ''}`}>
-              <button role="tab" aria-selected={i === cur} className={`pick press ${g.stories.every((s) => seen.has(s.id)) || isMe ? 'seen' : ''}`} onClick={() => (i === cur ? onOpen(i) : goTo(i))}>
-                <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={g.author?.photo_url} id={g.author?.id} /></span>
-                <span className="nm">{isMe ? 'ستوريك' : g.author?.full_name?.split(' ')[0]}</span>
-              </button>
-              {isMe && canPost && <button className="addb press" onClick={onAdd} aria-label="أضف ستوري">+</button>}
-            </span>
-          );
-        })}
-      </div>
-      <div className="cyl" ref={ref}>
-        {groups.map((g, i) => {
-          const st = g.stories[g.stories.length - 1];
-          return (
-            <button key={g.author?.id || i} className="cyc" onClick={() => (i === cur ? onOpen(i) : goTo(i))} aria-label={`ستوريات ${g.author?.full_name}`}>
-              {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
-              {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
-              {st.kind === 'text' && <span className="ttxt">{st.body}</span>}
-              {g.stories.length > 1 && <span className="cnt">{g.stories.length}</span>}
-              <span className="tmeta"><b>{g.author?.full_name}</b><span>{ago(st.created_at)}</span></span>
+      <div className="wheelbox">
+        <svg className="warc" viewBox={`0 0 ${w} 300`} preserveAspectRatio="none" aria-hidden="true"><polyline points={pts.join(' ')} /></svg>
+        <div className="wheel" ref={ref} role="listbox" aria-label="مين نزّل اليوم">
+          {items.map((x, i) => x.add ? (
+            <button key="add" className="witem" role="option" aria-selected={i === cur} onClick={() => (i === cur ? onAdd() : goTo(i))} aria-label="أضف ستوري">
+              <span className="wface plain"><Photo url={myPhoto} id={me} /></span><i className="wplus" aria-hidden="true">+</i>
             </button>
-          );
-        })}
+          ) : (
+            <button key={x.g.author?.id || i} className={`witem ${x.g.stories.every((st) => seen.has(st.id)) || x.g.author?.id === me ? 'seen' : ''}`} role="option" aria-selected={i === cur}
+              onClick={() => (i === cur ? onOpen(x.gi) : goTo(i))} aria-label={x.g.author?.full_name}>
+              <span className="wface"><Photo url={x.g.author?.photo_url} id={x.g.author?.id} /></span>
+            </button>
+          ))}
+        </div>
       </div>
-      {n > 1 && (
-        <input className="cylbar" type="range" min="0" max={n - 1} step="1" value={cur} dir="rtl"
-          aria-label="اختار الشخص" onChange={(e) => goTo(Number(e.target.value), false)} style={{ '--p': `${(cur / (n - 1)) * 100}%` }} />
-      )}
+      <div className="wname" aria-live="polite">
+        {it.add ? <><b>أضف ستوري</b><span>اكبس على صورتك</span></>
+          : <><b>{isMe ? 'ستوريك' : it.g.author?.full_name}</b><span>{it.g.stories.length > 1 ? `${it.g.stories.length} ستوريات · ` : ''}{ago(last.created_at)} · اكبس على الصورة</span></>}
+        {isMe && canPost && <button className="wmore press" onClick={onAdd}>+ ستوري جديدة</button>}
+      </div>
     </div>
   );
 }

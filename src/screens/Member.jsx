@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, membershipNo, supabase } from '../lib/supabase.js';
 import { go, peek } from '../lib/router.js';
@@ -105,16 +104,13 @@ export default function Member({ id }) {
 
   // a soft glow in the photo's own colour
 
-  // native-feeling header: the cover drifts slower than the page, and once the photo
-  // scrolls away a mini name+photo slides into the top bar (no React re-renders while scrolling)
-  const coverRef = useRef(null), avRef = useRef(null), miniRef = useRef(null);
+  // the cover drifts slower than the page (no React re-renders while scrolling)
+  const coverRef = useRef(null), avRef = useRef(null);
   const ready = !!(d?.p || peek.get(id));
   useEffect(() => {
     if (!ready) return;
     const stop = onScrollFrame((y) => { if (coverRef.current && y < 400) coverRef.current.style.transform = `translateY(${y * 0.35}px)`; });
-    const io = new IntersectionObserver(([e]) => miniRef.current?.classList.toggle('on', !e.isIntersecting && e.boundingClientRect.bottom < 90), { rootMargin: '-72px 0px 0px 0px' });
-    if (avRef.current) io.observe(avRef.current);
-    return () => { stop(); io.disconnect(); miniRef.current?.classList.remove('on'); };
+    return stop;
   }, [ready, id]);
 
   if (err) return <><BackBtn /><div className="err" role="alert">{err}</div></>;
@@ -130,10 +126,6 @@ export default function Member({ id }) {
   return (
     <>
       {!own && <BackBtn />}
-      {createPortal(
-        <div className="minihead" ref={miniRef} aria-hidden="true">
-          <Photo url={p.photo_url} id={p.id} /><b>{p.full_name}</b>
-        </div>, document.body)}
       <section className="pcard glass" style={{ marginTop: own ? 6 : 0 }}>
         <div className="pcover-wrap">
           <div ref={coverRef} className={`pcover ${p.cover_url ? 'has-img' : ''}`} aria-hidden="true">

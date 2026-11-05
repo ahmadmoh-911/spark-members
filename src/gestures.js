@@ -1,7 +1,7 @@
 // Native-app gestures, kept light: passive listeners, no React re-renders while the finger moves.
 import { go, parse, TABS } from './lib/router.js';
 
-const blocked = (t) => !!t.closest('input,textarea,select,.overlay,.sheet-wrap,.chips,.strip,.cyl,.cylpick,.react2,.sbar,[data-noswipe]');
+const blocked = (t) => !!t.closest('input,textarea,select,.overlay,.sheet-wrap,.chips,.strip,.wheel,.react2,.sbar,[data-noswipe]');
 const overlayOpen = () => !!document.querySelector('.overlay,.sheet-wrap');
 
 // Pull down at the top of a page → the four Spark dots bounce → page reloads its data.
