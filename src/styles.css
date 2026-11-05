@@ -407,3 +407,10 @@ main{padding-top:8px;padding-bottom:calc(110px + env(safe-area-inset-bottom,0px)
 .hfaq dd{margin:2px 0 0;color:var(--ink-2);line-height:1.7}
 .hgo{margin:6px 0 10px}
 @media (max-width:899px){.head{padding-left:52px}}
+
+/* installed app: no double-tap zoom, no text-selection callouts on UI chrome */
+html.app{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%}
+html.app body{overscroll-behavior-y:none}
+html.app .top,html.app .bottom,html.app button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* 16px inputs: iOS never auto-zooms on focus */
+.fld input,.fld textarea,.search input{font-size:16px}

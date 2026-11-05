@@ -125,14 +125,14 @@ function Stars({ value, onPick, disabled }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <button key={n} role="radio" aria-checked={value === n} aria-label={`${n} من 5`} disabled={disabled}
           onClick={() => onPick(n)}
-          style={{ border: 0, background: 'transparent', width: 34, height: 40, fontSize: 22, color: n <= (value || 0) ? '#E9A814' : 'var(--line)', cursor: 'pointer' }}>★</button>
+          style={{ border: 0, background: 'transparent', width: 34, height: 40, fontSize: 22, color: n <= (value || 0) ? '#E9A814' : 'var(--line)', cursor: disabled ? 'default' : 'pointer' }}>★</button>
       ))}
     </span>
   );
 }
 
 function CourseManage({ c: initial, onBack, toast }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [c, setC] = useState(initial);
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
@@ -205,7 +205,7 @@ function CourseManage({ c: initial, onBack, toast }) {
                   </span>
                 </div>
                 <div className="acts">
-                  <Stars value={r.trainer_stars} disabled={!r.student_id}
+                  <Stars value={r.trainer_stars} disabled={!r.student_id || (c.trainer_email || '').toLowerCase() !== (user?.email || '').toLowerCase()}
                     onPick={(n) => run(supabase.rpc('rate_enrollment', { p_enrollment: r.id, p_stars: n }), 'انحفظ التقييم')} />
                   {isAdmin && (
                     <span style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -221,7 +221,9 @@ function CourseManage({ c: initial, onBack, toast }) {
             {rows && !rows.length && <p className="empty" style={{ padding: 12 }}>ما في طلاب لسا.</p>}
           </div>
         )}
-        {!isAdmin && <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>تقييمك بيدخل بحساب تصنيف الشهادة، وما بيبيّن للناس كرقم.</p>}
+        <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>{isAdmin && (c.trainer_email || '').toLowerCase() !== (user?.email || '').toLowerCase()
+          ? 'النجوم بيعطيها مدرب الدورة بس. إنت بتشوفها هون بدون تعديل.'
+          : 'تقييمك بيدخل بحساب تصنيف الشهادة، وما بيبيّن للناس كرقم.'}</p>
       </section>
 
       {welcome && <Welcome c={c} emails={welcome} onClose={() => setWelcome(null)} />}
