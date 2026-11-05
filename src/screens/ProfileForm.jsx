@@ -90,7 +90,7 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
       <label className="fld">الاسم الكامل<input value={f.full_name} onChange={set('full_name')} autoComplete="name" maxLength={60} required /></label>
       <label className="fld">التخصص<input value={f.specialty} onChange={set('specialty')} placeholder="مثلاً: تصميم واجهات" maxLength={60} /></label>
       <label className="fld">جملة عنك<input value={f.tagline} onChange={set('tagline')} placeholder="بتظهر تحت اسمك بكرت الطالب" maxLength={90} /></label>
-      <label className="fld">نبذة<textarea rows={3} value={f.about} onChange={set('about')} maxLength={500} /></label>
+      <label className="fld">عنّي<textarea rows={3} value={f.about} onChange={set('about')} maxLength={500} /></label>
       <label className="fld">رقم الواتساب (اختياري)<input type="tel" dir="ltr" inputMode="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+970 59 000 0000" maxLength={20} />
         <span className="hint">مخفي عن الكل، الإدارة بس بتشوفه عشان تتواصل معك.</span></label>
       <ListInput label="المهارات" items={skills} setItems={setSkills} chips max={15} maxLen={40} placeholder="مثلاً: Figma" />

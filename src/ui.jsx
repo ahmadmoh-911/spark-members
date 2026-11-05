@@ -74,7 +74,7 @@ export const gradFor = (id = '') => GRADS[[...String(id)].reduce((a, c) => a + c
 export function Photo({ url, id, className = '', style, ...rest }) {
   return (
     <span className={`ph ${className}`} style={{ '--g': gradFor(id), ...style }} {...rest}>
-      {url ? <img src={url} alt="" loading="lazy" decoding="async" crossOrigin={isOurs(url) ? 'anonymous' : undefined} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
+      {url ? <img src={url} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
         : (
           <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
             <circle cx="50" cy="40" r="17" fill="#fff" opacity=".32" />

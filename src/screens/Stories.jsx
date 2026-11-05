@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
@@ -132,87 +132,115 @@ export default function Stories() {
   const mine = groups?.find((g) => g.author?.id === user?.id);
   const others = groups?.filter((g) => g.author?.id !== user?.id) || [];
   const canPost = postable.length > 0;
-  // every live story as a tile, newest first (fills the page instead of a few lonely circles)
-  const tiles = (groups || []).flatMap((g) => g.stories).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const openTile = (st) => {
-    const gi = groups.findIndex((g) => g.author?.id === st.author_id);
-    setOpen({ list: groups, i: gi, si: groups[gi].stories.findIndex((x) => x.id === st.id) });
-  };
+  const openAt = (gi, si = 0) => setOpen({ list: groups, i: gi, si });
 
   return (
     <>
       <div className="head"><div><h1>الستوريات</h1><p>شو صار اليوم بدورات سبارك · آخر 24 ساعة</p></div></div>
       {err && <div className="err" role="alert">{err}</div>}
-
-      {canPost && (
-        <button className="compose glass press" onClick={() => setComposing('text')}>
-          <span className={`avatar ${mine ? '' : 'noring'}`}><span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} /></span>
-          <span className="cq">شو عملت اليوم بالدورة؟</span>
-          <span className="ck" aria-hidden="true">
-            <span onClick={(e) => { e.stopPropagation(); setComposing('image'); }}>🖼️</span>
-            <span onClick={(e) => { e.stopPropagation(); setComposing('video'); }}>🎬</span>
-          </span>
-        </button>
-      )}
-
       {!groups && !err ? (
-        <>
-          <div className="strip"><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /></div>
-          <div className="tiles">{[0, 1, 2, 3].map((i) => <div key={i} className="sk sk-tile" />)}</div>
-        </>
-      ) : (
-        <>
-          {groups.length > 0 && (
-            <div className="strip" aria-label="مين نزّل اليوم">
-              {mine && (
-                <button className="sring press" onClick={() => setOpen({ list: groups, i: 0 })}>
-                  <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} /></span>
-                  <span className="nm">ستوريك</span>
-                </button>
-              )}
-              {others.map((g) => (
-                <button key={g.author.id} className="sring press" onClick={() => setOpen({ list: groups, i: groups.indexOf(g) })}>
-                  <span className={`avatar ${g.stories.every((s) => seen.has(s.id)) ? 'seen' : ''}`}><span className="ring" /><span className="gap" /><Photo url={g.author.photo_url} id={g.author.id} /></span>
-                  <span className="nm">{g.author.full_name?.split(' ')[0]}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {tiles.length > 0 ? (
-            <div className="tiles">
-              {tiles.map((st, i) => (
-                <button key={st.id} className={`tile press ${seen.has(st.id) || st.author_id === user?.id ? '' : 'new'}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} onClick={() => openTile(st)}>
-                  {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
-                  {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
-                  {st.kind === 'text' && <span className="ttxt">{st.body}</span>}
-                  <span className="tmeta">
-                    <Photo url={st.author?.photo_url} id={st.author_id} />
-                    <span><b>{st.author?.full_name?.split(' ')[0]}</b>{ago(st.created_at)}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <section className="sec glass">
-              <Empty art="stories" title={canPost ? 'كون أول واحد اليوم ✨' : 'هدوء اليوم 😴'} text={canPost ? 'نزّل ستوري عن شو تعلمت، وبتنحسب بتفاعلك بالدورة.' : 'ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي.'} />
-            </section>
-          )}
-        </>
+        <div className="stage">
+          <div className="pick-row"><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /></div>
+          <div className="sk" style={{ height: 300, borderRadius: 26, margin: '0 18%' }} />
+        </div>
+      ) : groups && (
+        <Cylinder groups={groups} seen={seen} me={user?.id} canPost={canPost} mine={!!mine} myPhoto={profile?.photo_url}
+          onOpen={openAt} onAdd={() => setComposing('text')} />
       )}
       {!user && <div className="note glass">بتقدر تتفرج بدون دخول. لتنزّل ستوري لازم تكون عضو بدورة بلّشت.</div>}
       {user && !canPost && profile?.role === 'student' && <div className="note glass">بتقدر تنزّل ستوريات لما تبلّش دورتك.</div>}
-
-      {canPost && createPortal(
-        <button className="sfab press" onClick={() => setComposing('text')} aria-label="ستوري جديدة">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        </button>, document.body
-      )}
 
       {open && <Viewer groups={open.list} start={open.i} startStory={open.si || 0} onClose={() => { setOpen(null); load(); }} onDeleted={() => setMsg('انحذفت الستوري')} />}
       {composing && <Composer courses={postable} initialKind={composing} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
       <Toast msg={msg} onDone={() => setMsg('')} />
     </>
+  );
+}
+
+// ---------- cylinder ----------
+// One card per person, bent round a cylinder in the middle of the screen. Slide it (or the pointer
+// under it, or tap a face above it) to bring someone to the front; tap the front card to watch.
+function Cylinder({ groups, seen, me, canPost, mine, myPhoto, onOpen, onAdd }) {
+  const ref = useRef(null);
+  const [cur, setCur] = useState(0);
+  const n = groups.length;
+  const paint = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    const mid = el.scrollLeft + el.clientWidth / 2;
+    let best = 0, bestD = 1e9;
+    [...el.children].forEach((c, i) => {
+      const center = c.offsetLeft + c.offsetWidth / 2;
+      const d = (center - mid) / c.offsetWidth; // -1 … 1 per card
+      const k = Math.max(-2.2, Math.min(2.2, d));
+      c.style.transform = `perspective(900px) rotateY(${k * -38}deg) translateZ(${-Math.abs(k) * 70}px) scale(${1 - Math.min(Math.abs(k), 1.5) * 0.08})`;
+      c.style.opacity = String(1 - Math.min(Math.abs(k), 2) * 0.28);
+      if (Math.abs(d) < bestD) { bestD = Math.abs(d); best = i; }
+    });
+    setCur((p) => (p === best ? p : best));
+  }, []);
+  useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    let raf = 0;
+    const on = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(); }); };
+    paint();
+    el.addEventListener('scroll', on, { passive: true });
+    window.addEventListener('resize', on);
+    return () => { el.removeEventListener('scroll', on); window.removeEventListener('resize', on); cancelAnimationFrame(raf); };
+  }, [paint, n]);
+  const goTo = (i, smooth = true) => {
+    const el = ref.current, c = el?.children[i]; if (!c) return;
+    el.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - el.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' });
+  };
+  if (!n) {
+    return (
+      <div className="stage">
+        {canPost && <div className="pick-row"><button className="pick add-me press" onClick={onAdd}><span className="avatar noring"><Photo url={myPhoto} id={me} /></span><i aria-hidden="true">+</i><span className="nm">أضف ستوري</span></button></div>}
+        <section className="sec glass">
+          <Empty art="stories" title={canPost ? 'كون أول واحد اليوم ✨' : 'هدوء اليوم 😴'} text={canPost ? 'نزّل ستوري عن شو تعلمت، وبتنحسب بتفاعلك بالدورة.' : 'ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي.'} />
+        </section>
+      </div>
+    );
+  }
+  return (
+    <div className="stage">
+      <div className="pick-row cylpick" role="tablist" aria-label="مين نزّل اليوم">
+        {canPost && !mine && (
+          <button className="pick add-me press" onClick={onAdd} aria-label="أضف ستوري">
+            <span className="avatar noring"><Photo url={myPhoto} id={me} /></span><i aria-hidden="true">+</i><span className="nm">إلك</span>
+          </button>
+        )}
+        {groups.map((g, i) => {
+          const isMe = g.author?.id === me;
+          return (
+            <span key={g.author?.id || i} className={`pickw ${i === cur ? 'on' : ''}`}>
+              <button role="tab" aria-selected={i === cur} className={`pick press ${g.stories.every((s) => seen.has(s.id)) || isMe ? 'seen' : ''}`} onClick={() => (i === cur ? onOpen(i) : goTo(i))}>
+                <span className="avatar"><span className="ring" /><span className="gap" /><Photo url={g.author?.photo_url} id={g.author?.id} /></span>
+                <span className="nm">{isMe ? 'ستوريك' : g.author?.full_name?.split(' ')[0]}</span>
+              </button>
+              {isMe && canPost && <button className="addb press" onClick={onAdd} aria-label="أضف ستوري">+</button>}
+            </span>
+          );
+        })}
+      </div>
+      <div className="cyl" ref={ref}>
+        {groups.map((g, i) => {
+          const st = g.stories[g.stories.length - 1];
+          return (
+            <button key={g.author?.id || i} className="cyc" onClick={() => (i === cur ? onOpen(i) : goTo(i))} aria-label={`ستوريات ${g.author?.full_name}`}>
+              {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
+              {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+              {st.kind === 'text' && <span className="ttxt">{st.body}</span>}
+              {g.stories.length > 1 && <span className="cnt">{g.stories.length}</span>}
+              <span className="tmeta"><b>{g.author?.full_name}</b><span>{ago(st.created_at)}</span></span>
+            </button>
+          );
+        })}
+      </div>
+      {n > 1 && (
+        <input className="cylbar" type="range" min="0" max={n - 1} step="1" value={cur} dir="rtl"
+          aria-label="اختار الشخص" onChange={(e) => goTo(Number(e.target.value), false)} style={{ '--p': `${(cur / (n - 1)) * 100}%` }} />
+      )}
+    </div>
   );
 }
 
@@ -567,47 +595,38 @@ const dayLabel = (t) => {
 };
 export function CourseWall({ courseId }) {
   const [list, setList] = useState(null);
-  const [limit, setLimit] = useState(30);
   const [open, setOpen] = useState(null);
   const load = useCallback(() => {
-    supabase.from('stories').select(SELECT).eq('course_id', courseId).order('created_at', { ascending: false }).limit(limit + 1)
+    supabase.from('stories').select(SELECT).eq('course_id', courseId).order('created_at', { ascending: false }).limit(60)
       .then(({ data }) => setList(data || []));
-  }, [courseId, limit]);
+  }, [courseId]);
   useEffect(() => { load(); }, [load]);
-  if (!list) return <div className="wall"><div className="sk" style={{ height: 120, borderRadius: 18 }} /><div className="sk" style={{ height: 120, borderRadius: 18 }} /></div>;
+  // a loose chain in a shuffled order that stays put for the day
+  const chain = useMemo(() => {
+    if (!list) return [];
+    let a = (Number(courseId) * 7919 + Math.floor(Date.now() / DAY)) >>> 0;
+    const r = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+    const out = [...list];
+    for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+    return out.map((st) => ({ st, tilt: Math.round((r() - 0.5) * 16), lift: Math.round((r() - 0.5) * 18), size: (0.85 + r() * 0.3).toFixed(2) }));
+  }, [list, courseId]);
+  if (!list) return <div className="chain">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="sk link" />)}</div>;
   if (!list.length) return <Empty art="stories" title="الحائط فاضي لسا" text="ستوريات طلاب الدورة بتتجمّع هون، كل يوم بيومه." />;
-  const shown = list.slice(0, limit);
-  const days = [];
-  for (const st of shown) {
-    const lbl = dayLabel(st.created_at);
-    if (!days.length || days[days.length - 1].lbl !== lbl) days.push({ lbl, items: [] });
-    days[days.length - 1].items.push(st);
-  }
   const openAt = (st) => {
-    const groups = group(shown);
+    const groups = group(list);
     const gi = groups.findIndex((g) => g.author?.id === st.author_id);
     setOpen({ groups, gi, si: groups[gi].stories.findIndex((x) => x.id === st.id) });
   };
   return (
-    <div className="wall">
-      {days.map((d) => (
-        <div key={d.lbl} className="wday">
-          <div className="wlbl"><span>{d.lbl}</span></div>
-          {d.items.map((st) => (
-            <button key={st.id} className="wpost press" onClick={() => openAt(st)}>
-              <span className="wwho">
-                <Photo url={st.author?.photo_url} id={st.author_id} />
-                <b>{st.author?.full_name}</b>
-                <span>{ago(st.created_at)}</span>
-              </span>
-              {st.kind === 'text' && <span className="wtxt">{st.body}</span>}
-              {st.kind === 'image' && <span className="wmedia"><img src={st.media_url} alt="" loading="lazy" />{st.body && <span className="wcap">{st.body}</span>}</span>}
-              {st.kind === 'video' && <span className="wmedia"><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span>{st.body && <span className="wcap">{st.body}</span>}</span>}
-            </button>
-          ))}
-        </div>
+    <div className="chain">
+      {chain.map(({ st, tilt, lift, size }, i) => (
+        <button key={st.id} className="link press" style={{ '--t': `${tilt}deg`, '--y': `${lift}px`, '--s': size, animationDelay: `${Math.min(i, 20) * 25}ms` }} onClick={() => openAt(st)} aria-label={`ستوري ${st.author?.full_name}`}>
+          {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
+          {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+          {st.kind === 'text' && <span className="ltxt">{st.body}</span>}
+          <span className="who"><Photo url={st.author?.photo_url} id={st.author_id} /></span>
+        </button>
       ))}
-      {list.length > limit && <button className="ghost press" onClick={() => setLimit(limit + 30)}>اعرض أقدم</button>}
       {open && <Viewer groups={open.groups} start={open.gi} startStory={open.si} onClose={() => { setOpen(null); load(); }} />}
     </div>
   );

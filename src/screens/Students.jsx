@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { friendlyError, supabase } from '../lib/supabase.js';
 import { go, peek } from '../lib/router.js';
-import { Photo, Tick, SkCards, Empty, CountUp, usePhotoTone, useLiveAuthors } from '../ui.jsx';
+import { Photo, Tick, SkCards, Empty, CountUp } from '../ui.jsx';
 import { onScrollFrame } from '../gestures.js';
 
 // Order changes every 4 hours, the same for everyone in that window.
@@ -25,8 +25,7 @@ export function shuffleForNow(list) {
   return cur.map((i) => list[i]);
 }
 
-export function MemberCard({ m, i = 0, live = false }) {
-  const tone = usePhotoTone(m.photo_url);
+export function MemberCard({ m, i = 0 }) {
   if (!m.student_id && !m.id) {
     return (
       <div className="scard seat" style={{ animationDelay: `${i * 30}ms` }}>
@@ -42,7 +41,7 @@ export function MemberCard({ m, i = 0, live = false }) {
     go('member/' + id);
   };
   return (
-    <button className={`scard press tilt ${live ? 'live' : ''} ${tone ? 'toned' : ''}`} style={{ animationDelay: `${Math.min(i, 18) * 30}ms`, ...(tone ? { '--tone': tone } : null) }} onClick={open} aria-label={live ? `${m.full_name} (عنده ستوري اليوم)` : m.full_name}>
+    <button className="scard press tilt" style={{ animationDelay: `${Math.min(i, 18) * 30}ms` }} onClick={open} aria-label={m.full_name}>
       <Photo url={m.photo_url} id={id} />
       <span className="ov">
         <span className="name"><span className="nm">{m.full_name}</span>{m.course_count >= 2 && <Tick />}</span>
@@ -56,18 +55,15 @@ export function MemberCard({ m, i = 0, live = false }) {
 export default function Students() {
   const [rows, setRows] = useState(null);
   const [stats, setStats] = useState(null);
-  const [courses, setCourses] = useState([]);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [chip, setChip] = useState(null); // { kind: 'course' | 'spec', value }
-  const live = useLiveAuthors();
   const bar = useRef(null);
   useEffect(() => {
     supabase.rpc('public_members').then(({ data, error }) => {
       if (error) setErr(friendlyError(error)); else setRows(shuffleForNow(data));
     });
     supabase.rpc('home_stats').then(({ data }) => setStats(data?.[0] || null));
-    supabase.rpc('public_courses').then(({ data }) => setCourses((data || []).filter((c) => c.member_count > 0)));
   }, []);
   // the search/filter bar tucks away while scrolling down and comes back on the way up
   useEffect(() => {
@@ -86,7 +82,7 @@ export default function Students() {
   const list = useMemo(() => {
     const s = q.trim();
     return (rows || []).filter((m) => (!s || m.full_name?.includes(s) || m.specialty?.includes(s) || m.tagline?.includes(s))
-      && (!chip || (chip.kind === 'course' ? m.course_ids?.includes(chip.value) : m.specialty === chip.value)));
+      && (!chip || m.specialty === chip.value));
   }, [rows, q, chip]);
   const pick = (c) => setChip((cur) => (cur && cur.kind === c.kind && cur.value === c.value ? null : c));
   return (
@@ -110,12 +106,9 @@ export default function Students() {
           <span className="sr">بحث</span>
           <input type="search" placeholder="دوّر باسم أو تخصص" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
-        {(courses.length > 0 || specs.length > 0) && (
+        {specs.length > 0 && (
           <div className="chips" role="group" aria-label="فلترة">
             <button className={`fchip ${!chip ? 'on' : ''}`} aria-pressed={!chip} onClick={() => setChip(null)}>الكل</button>
-            {courses.map((c) => (
-              <button key={'c' + c.id} className={`fchip ${chip?.kind === 'course' && chip.value === c.id ? 'on' : ''}`} aria-pressed={chip?.kind === 'course' && chip.value === c.id} onClick={() => pick({ kind: 'course', value: c.id })}>📚 {c.title}</button>
-            ))}
             {specs.map((s) => (
               <button key={'s' + s} className={`fchip ${chip?.kind === 'spec' && chip.value === s ? 'on' : ''}`} aria-pressed={chip?.kind === 'spec' && chip.value === s} onClick={() => pick({ kind: 'spec', value: s })}>{s}</button>
             ))}
@@ -125,7 +118,7 @@ export default function Students() {
       {err && <div className="err" role="alert">{err}</div>}
       {!rows && !err ? <SkCards n={9} /> : (
         <div className="cards">
-          {list.map((m, i) => <MemberCard key={m.id} m={m} i={i} live={live.has(m.id)} />)}
+          {list.map((m, i) => <MemberCard key={m.id} m={m} i={i} />)}
           {rows && !list.length && (
             <div style={{ gridColumn: '1/-1' }}>
               {q || chip ? <Empty art="people" title="ما لقينا حدا بهالاسم 🔍" text="جرّب كلمة تانية أو جزء من الاسم." />

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, membershipNo, supabase } from '../lib/supabase.js';
 import { go, peek } from '../lib/router.js';
-import { Photo, TierRow, Tick, SkLines, Empty, CountUp, celebrate, courseColor, usePhotoTone } from '../ui.jsx';
+import { Photo, TierRow, Tick, SkLines, Empty, CountUp, celebrate, courseColor } from '../ui.jsx';
 import { onScrollFrame } from '../gestures.js';
 import ProfileForm from './ProfileForm.jsx';
 import Works from './Works.jsx';
@@ -14,7 +14,7 @@ import { Sheet, Toast } from '../sheet.jsx';
 
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 const ROLE = { admin: 'إدارة', trainer: 'مدرب' };
-const TABS = [['about', 'نبذة'], ['certs', 'الشهادات'], ['works', 'الأعمال'], ['stories', 'الستوريات']];
+const TABS = [['about', 'عنّي'], ['certs', 'الشهادات'], ['works', 'الأعمال'], ['stories', 'الستوريات']];
 const isPdf = (u = '') => /\.pdf($|\?)/i.test(u);
 export const memberLink = (id) => `${location.origin}${import.meta.env.BASE_URL}#/member/${id}`;
 
@@ -104,7 +104,6 @@ export default function Member({ id }) {
   }, [id, watching]);
 
   // a soft glow in the photo's own colour
-  const tone = usePhotoTone(d?.p?.photo_url ?? peek.get(id)?.photo_url);
 
   // native-feeling header: the cover drifts slower than the page, and once the photo
   // scrolls away a mini name+photo slides into the top bar (no React re-renders while scrolling)
@@ -135,7 +134,7 @@ export default function Member({ id }) {
         <div className="minihead" ref={miniRef} aria-hidden="true">
           <Photo url={p.photo_url} id={p.id} /><b>{p.full_name}</b>
         </div>, document.body)}
-      <section className={`pcard glass ${tone ? 'toned' : ''}`} style={{ marginTop: own ? 6 : 0, ...(tone ? { '--tone': tone } : null) }}>
+      <section className="pcard glass" style={{ marginTop: own ? 6 : 0 }}>
         <div className="pcover-wrap">
           <div ref={coverRef} className={`pcover ${p.cover_url ? 'has-img' : ''}`} aria-hidden="true">
             {p.cover_url ? <img src={p.cover_url} alt="" /> : <><i /><i /><i /><i /></>}
@@ -143,13 +142,11 @@ export default function Member({ id }) {
         </div>
         <div className="pbody">
           {live.length > 0 ? (
-            <button ref={avRef} className="avatar big pav live press" onClick={() => setWatching(true)} aria-label={`شوف ستوري ${p.full_name}`}>
-              <span className="ring" /><span className="gap" />
+            <button ref={avRef} className="avatar big pav noring tap press" onClick={() => setWatching(true)} aria-label={`شوف ستوري ${p.full_name}`}>
               <Photo url={p.photo_url} id={p.id} />
             </button>
           ) : (
-            <span ref={avRef} className="avatar big pav">
-              <span className="ring" /><span className="gap" />
+            <span ref={avRef} className="avatar big pav noring">
               <Photo url={p.photo_url} id={p.id} />
             </span>
           )}
@@ -193,8 +190,8 @@ export default function Member({ id }) {
             <div className="pcols">
               <div style={{ display: 'grid', gap: 12 }}>
                 <section className="sec glass">
-                  <h2>نبذة</h2>
-                  {p.about ? <p>{p.about}</p> : <p style={{ color: 'var(--muted)' }}>{own ? 'اضغط «تعديل» وضيف نبذة عنك.' : 'لسا ما كتب نبذة.'}</p>}
+                  <h2>عنّي</h2>
+                  {p.about ? <p>{p.about}</p> : <p style={{ color: 'var(--muted)' }}>{own ? 'اضغط «تعديل» واكتب كم كلمة عنك.' : 'لسا ما كتب عن حاله.'}</p>}
                   {p.skills?.length > 0 && <div className="picks">{p.skills.map((s) => <span key={s} className="chip">{s}</span>)}</div>}
                 </section>
                 {p.goals?.length > 0 && (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { friendlyError, supabase } from '../lib/supabase.js';
-import { SkCards, Empty, CountUp, useLiveAuthors } from '../ui.jsx';
+import { SkCards, Empty, CountUp } from '../ui.jsx';
 import { onScrollFrame } from '../gestures.js';
 import { BackBtn } from './Member.jsx';
 import { courseStatus, coverStyle, courseTimeline } from './Courses.jsx';
@@ -14,7 +14,6 @@ export default function Course({ id }) {
   const [c, setC] = useState(null);
   const [roster, setRoster] = useState(null);
   const [err, setErr] = useState('');
-  const live = useLiveAuthors();
   const heroRef = useRef(null), artRef = useRef(null), miniRef = useRef(null);
   useEffect(() => {
     Promise.all([supabase.rpc('public_courses'), supabase.rpc('course_roster', { p_course: Number(id) })])
@@ -59,12 +58,12 @@ export default function Course({ id }) {
       {c.description && <p className="cdesc glass">{c.description}</p>}
       <div className="head"><div><h1 style={{ fontSize: 22 }}>طلاب الدورة {roster.length ? `(${roster.length})` : ''}</h1></div></div>
       <div className="cards">
-        {roster.map((m, i) => <MemberCard key={m.student_id || 'seat' + i} m={m} i={i} live={!!m.student_id && live.has(m.student_id)} />)}
+        {roster.map((m, i) => <MemberCard key={m.student_id || 'seat' + i} m={m} i={i} />)}
         {!roster.length && <div style={{ gridColumn: '1/-1' }}><Empty art="people" title={courseStatus(c) === 'قريباً' ? 'الطلاب بيظهروا أول يوم بالدورة 🚀' : 'لسا ما في طلاب'} text={courseStatus(c) === 'قريباً' ? 'استنّوا الانطلاقة!' : ''} /></div>}
       </div>
       {courseStatus(c) !== 'قريباً' && (
         <>
-          <div className="head"><div><h1 style={{ fontSize: 22 }}>حائط الدورة</h1><p>كل ستوريات طلاب الدورة، يوم بيوم</p></div></div>
+          <div className="head"><div><h1 style={{ fontSize: 22 }}>حائط الدورة</h1><p>ستوريات طلاب الدورة، اكبس على أي وحدة</p></div></div>
           <CourseWall courseId={c.id} />
         </>
       )}
