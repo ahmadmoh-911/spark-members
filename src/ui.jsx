@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const BASE = import.meta.env.BASE_URL;
 export const LOGO_DARK = `${BASE}brand/logo-dark.png`;
@@ -46,6 +46,14 @@ export function installPressEffects() {
   document.addEventListener('pointerdown', (e) => {
     const el = e.target.closest('.press');
     if (!el || reduce) return;
+    // a tiny tap of feedback on the main action buttons (Android only; iOS ignores vibrate)
+    if (el.matches('.cta,.save,.pbtn.primary') && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* ignore */ } }
+    // cards tilt toward the finger
+    if (el.classList.contains('tilt')) {
+      const b = el.getBoundingClientRect();
+      el.style.setProperty('--ry', `${((e.clientX - b.left) / b.width - 0.5) * 10}deg`);
+      el.style.setProperty('--rx', `${-((e.clientY - b.top) / b.height - 0.5) * 10}deg`);
+    }
     el.classList.add('down');
     const r = el.getBoundingClientRect();
     const d = Math.max(r.width, r.height) * 2.2;
@@ -62,9 +70,9 @@ export function installPressEffects() {
 // photo, or a soft brand-coloured placeholder until one is uploaded
 const GRADS = ['linear-gradient(140deg,#FFB067,#F47B20)', 'linear-gradient(140deg,#6FA8EE,#134F96)', 'linear-gradient(140deg,#A6E08F,#4BB454)', 'linear-gradient(140deg,#FFE58A,#FFCD05)'];
 export const gradFor = (id = '') => GRADS[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % GRADS.length];
-export function Photo({ url, id, className = '', style }) {
+export function Photo({ url, id, className = '', style, ...rest }) {
   return (
-    <span className={`ph ${className}`} style={{ '--g': gradFor(id), ...style }}>
+    <span className={`ph ${className}`} style={{ '--g': gradFor(id), ...style }} {...rest}>
       {url ? <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }} />
         : (
           <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -107,3 +115,60 @@ export function TierRow({ tier }) {
 }
 
 export const Spinner = () => <div className="spin" role="status" aria-label="جارٍ التحميل"><i /></div>;
+
+// ---- loading skeletons (shimmering shapes of what's coming) ----
+export function SkCards({ n = 6 }) {
+  return <div className="cards" aria-busy="true" aria-label="جارٍ التحميل">{Array.from({ length: n }, (_, i) => <div key={i} className="sk sk-card" />)}</div>;
+}
+export function SkCourses({ n = 3 }) {
+  return <div className="courses" aria-busy="true" aria-label="جارٍ التحميل">{Array.from({ length: n }, (_, i) => <div key={i} className="sk sk-course" />)}</div>;
+}
+export function SkLines({ n = 3 }) {
+  return <div className="sk-lines" aria-busy="true" aria-label="جارٍ التحميل">{Array.from({ length: n }, (_, i) => <div key={i} className="sk sk-line" style={{ width: `${90 - i * 18}%` }} />)}</div>;
+}
+
+// ---- friendly empty states ----
+const ART = {
+  people: <><circle cx="40" cy="34" r="12" fill="var(--blue)" opacity=".18" /><circle cx="70" cy="40" r="9" fill="var(--orange)" opacity=".22" /><path d="M18 74c3-14 12-21 22-21s19 7 22 21z" fill="var(--blue)" opacity=".18" /><path d="M56 74c2-10 8-15 14-15s12 5 14 15z" fill="var(--orange)" opacity=".22" /></>,
+  stories: <><circle cx="50" cy="44" r="24" fill="none" stroke="var(--orange)" strokeWidth="4" strokeDasharray="8 6" opacity=".5" /><circle cx="50" cy="44" r="14" fill="var(--yellow)" opacity=".35" /></>,
+  courses: <><path d="M14 38l36-16 36 16-36 16z" fill="var(--blue)" opacity=".2" /><path d="M28 46v14c0 6 10 11 22 11s22-5 22-11V46" fill="none" stroke="var(--green)" strokeWidth="4" opacity=".45" /></>,
+  certs: <><rect x="18" y="20" width="64" height="46" rx="6" fill="var(--yellow)" opacity=".25" /><circle cx="50" cy="56" r="10" fill="var(--orange)" opacity=".35" /><path d="M44 64l-4 14 10-5 10 5-4-14" fill="var(--orange)" opacity=".35" /></>,
+  inbox: <><rect x="16" y="26" width="68" height="44" rx="10" fill="var(--green)" opacity=".2" /><path d="M16 50h20l6 8h16l6-8h20" fill="none" stroke="var(--green)" strokeWidth="4" opacity=".5" /></>,
+};
+export function Empty({ art = 'people', title, text, children }) {
+  return (
+    <div className="emptyx">
+      <svg viewBox="0 0 100 90" aria-hidden="true"><g className="float">{ART[art]}</g>
+        <circle cx="84" cy="18" r="3" fill="var(--yellow)" /><circle cx="16" cy="22" r="2.5" fill="var(--green)" /><circle cx="88" cy="70" r="2" fill="var(--blue)" />
+      </svg>
+      {title && <b>{title}</b>}
+      {text && <span>{text}</span>}
+      {children}
+    </div>
+  );
+}
+
+// ---- numbers that count up when they appear ----
+export function CountUp({ to = 0, ms = 900 }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setV(to); return; }
+    let raf; const t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / ms); setV(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [to, ms]);
+  return <>{v}</>;
+}
+
+// ---- confetti in Spark colours (loaded only when needed) ----
+export async function celebrate() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const { default: confetti } = await import('canvas-confetti');
+  const colors = ['#4BB454', '#134F96', '#F47B20', '#FFCD05'];
+  confetti({ particleCount: 90, spread: 75, startVelocity: 42, origin: { y: 0.7 }, colors, zIndex: 9999, disableForReducedMotion: true });
+  setTimeout(() => confetti({ particleCount: 60, spread: 110, origin: { y: 0.6 }, colors, zIndex: 9999, disableForReducedMotion: true }), 250);
+}
+
+// course → one of the four Spark colours (stable)
+export const courseColor = (id) => ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'][Math.abs(Number(id) || 0) % 4];

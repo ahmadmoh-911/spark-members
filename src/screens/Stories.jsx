@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
 import { go } from '../lib/router.js';
-import { Photo, Spinner } from '../ui.jsx';
+import { Photo, Spinner, Empty, celebrate } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -41,6 +41,66 @@ export function usePostable() {
     });
   }, [user]);
   return courses;
+}
+
+// live stories (last 24h) grouped per person, my ring first, plus which ones I've seen
+export function useLiveStories() {
+  const { user } = useAuth();
+  const [groups, setGroups] = useState(null);
+  const [seen, setSeen] = useState(new Set());
+  const [err, setErr] = useState('');
+  const load = useCallback(async () => {
+    const since = new Date(Date.now() - DAY).toISOString();
+    const { data, error } = await supabase.from('stories').select(SELECT).gte('created_at', since).order('created_at', { ascending: false });
+    if (error) { setErr(friendlyError(error)); return; }
+    let g = group(data);
+    if (user) g = [...g.filter((x) => x.author?.id === user.id), ...g.filter((x) => x.author?.id !== user.id)];
+    setGroups(g);
+    if (user && data.length) {
+      const { data: v } = await supabase.from('story_views').select('story_id').in('story_id', data.map((x) => x.id));
+      setSeen(new Set((v || []).map((x) => x.story_id)));
+    }
+  }, [user]);
+  useEffect(() => { load(); }, [load]);
+  return { groups, seen, err, load };
+}
+
+// first story ever from this device/account → a little party
+export function maybeCelebrateFirstStory(uid) {
+  try {
+    const k = 'spark-first-story-' + uid;
+    if (!localStorage.getItem(k)) { localStorage.setItem(k, '1'); celebrate(); return true; }
+  } catch { /* ignore */ }
+  return false;
+}
+
+// horizontal row of story rings for the home page
+export function StoryStrip() {
+  const { user, profile } = useAuth();
+  const postable = usePostable();
+  const { groups, seen, load } = useLiveStories();
+  const [open, setOpen] = useState(null);
+  if (!groups) return <div className="strip"><div className="sk sk-ring" /><div className="sk sk-ring" /><div className="sk sk-ring" /></div>;
+  const mine = groups.find((g) => g.author?.id === user?.id);
+  const others = groups.filter((g) => g.author?.id !== user?.id);
+  if (!others.length && !postable.length && !mine) return null;
+  return (
+    <div className="strip" aria-label="ستوريات اليوم">
+      {postable.length > 0 && (
+        <button className="sring press" onClick={() => (mine ? setOpen({ i: 0 }) : go('stories'))}>
+          <span className={`avatar ${mine ? '' : 'noring'}`}><span className="ring" /><span className="gap" /><Photo url={profile?.photo_url} id={user.id} />{!mine && <span className="add" aria-hidden="true">+</span>}</span>
+          <span className="nm">{mine ? 'ستوريك' : 'أضف'}</span>
+        </button>
+      )}
+      {others.map((g) => (
+        <button key={g.author.id} className="sring press" onClick={() => setOpen({ i: groups.indexOf(g) })}>
+          <span className={`avatar ${g.stories.every((x) => seen.has(x.id)) ? 'seen' : ''}`}><span className="ring" /><span className="gap" /><Photo url={g.author.photo_url} id={g.author.id} /></span>
+          <span className="nm">{g.author.full_name?.split(' ')[0]}</span>
+        </button>
+      ))}
+      {open && <Viewer groups={groups} start={open.i} onClose={() => { setOpen(null); load(); }} />}
+    </div>
+  );
 }
 
 export default function Stories() {
@@ -98,7 +158,7 @@ export default function Stories() {
               </button>
             );
           })}
-          {!others.length && !canPost && <p className="empty">ما في ستوريات بآخر 24 ساعة.</p>}
+          {!others.length && !canPost && <div style={{ gridColumn: '1/-1' }}><Empty art="stories" title="هدوء اليوم 😴" text="ما حدا نزّل ستوري بآخر 24 ساعة. ارجع بعد شوي." /></div>}
           {!others.length && canPost && !mine && <p style={{ alignSelf: 'center', color: 'var(--muted)', fontSize: 14, gridColumn: 'span 3' }}>كون أول واحد بينزّل ستوري اليوم.</p>}
         </div>
       )}
@@ -106,7 +166,7 @@ export default function Stories() {
       {user && !canPost && profile?.role === 'student' && <div className="note glass">بتقدر تنزّل ستوريات لما تبلّش دورتك.</div>}
 
       {open && <Viewer groups={open.list} start={open.i} onClose={() => { setOpen(null); load(); }} onDeleted={() => setMsg('انحذفت الستوري')} />}
-      {composing && <Composer courses={postable} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg('انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
+      {composing && <Composer courses={postable} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
       <Toast msg={msg} onDone={() => setMsg('')} />
     </>
   );
@@ -186,11 +246,11 @@ function Composer({ courses, onClose, onPosted }) {
 
 // ---------- viewer ----------
 // groups: [{author, stories}] ; swipe/arrows move between stories, then people
-export function Viewer({ groups: initial, start = 0, onClose, onDeleted }) {
+export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, onDeleted }) {
   const { user, isAdmin } = useAuth();
   const [groups, setGroups] = useState(initial);
   const [gi, setGi] = useState(start);
-  const [si, setSi] = useState(0);
+  const [si, setSi] = useState(startStory);
   const [anim, setAnim] = useState('open');
   const [closing, setClosing] = useState(false);
   const [views, setViews] = useState(null);
@@ -414,6 +474,35 @@ export function ArchiveButton({ member }) {
         {live ? 'الستوريات' : 'أرشيف الستوريات'} ({list.length})
       </button>
       {open && <Viewer groups={[{ author: list[0].author, stories: list }]} start={0} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+// all of one member's stories as a grid of tiles (profile "الستوريات" tab)
+export function StoryGrid({ member }) {
+  const [list, setList] = useState(null);
+  const [open, setOpen] = useState(null);
+  const load = useCallback(() => {
+    supabase.from('stories').select(SELECT).eq('author_id', member).order('created_at', { ascending: true })
+      .then(({ data }) => setList(data || []));
+  }, [member]);
+  useEffect(() => { load(); }, [load]);
+  if (!list) return <div className="sgrid">{[0, 1, 2].map((i) => <div key={i} className="sk sk-tile" />)}</div>;
+  if (!list.length) return <Empty art="stories" title="لسا ما في ستوريات" text="الستوريات اللي بتنزل بتضل هون كأرشيف بعد ما يخلص يومها." />;
+  const newestFirst = [...list].reverse();
+  return (
+    <>
+      <div className="sgrid">
+        {newestFirst.map((st) => (
+          <button key={st.id} className="stile press" onClick={() => setOpen(list.indexOf(st))} aria-label={`ستوري ${ago(st.created_at)}`}>
+            {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" />}
+            {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+            {st.kind === 'text' && <span className="txt">{st.body}</span>}
+            <span className="when">{Date.now() - Date.parse(st.created_at) < DAY ? 'اليوم' : ago(st.created_at)}</span>
+          </button>
+        ))}
+      </div>
+      {open != null && <Viewer groups={[{ author: list[0].author, stories: list }]} start={0} startStory={open} onClose={() => { setOpen(null); load(); }} />}
     </>
   );
 }

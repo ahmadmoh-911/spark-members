@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
-import { Photo, Spinner } from '../ui.jsx';
+import { Photo, Spinner, CountUp } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 import { courseStatus, coverStyle } from './Courses.jsx';
 import { Requests } from './Join.jsx';
@@ -15,8 +15,10 @@ export default function Panel() {
   const { isAdmin, isTrainer, user } = useAuth();
   const [tab, setTab] = useState('courses');
   const [reqCount, setReqCount] = useState(0);
+  const [sum, setSum] = useState(null);
   useEffect(() => {
-    if (isAdmin) supabase.rpc('admin_join_requests').then(({ data }) => setReqCount(data?.length || 0));
+    if (!isAdmin) return;
+    supabase.rpc('admin_summary').then(({ data }) => { const x = data?.[0]; if (x) { setSum(x); setReqCount(x.requests); } });
   }, [isAdmin, tab]);
   const [course, setCourse] = useState(null);
   const [msg, setMsg] = useState('');
@@ -24,6 +26,14 @@ export default function Panel() {
   return (
     <>
       <div className="head"><div><h1>{isAdmin ? 'لوحة الإدارة' : 'لوحة المدرب'}</h1><p>{isAdmin ? 'الدورات والطلاب والمدربين والشهادات' : 'طلاب دوراتك وتقييمهم'}</p></div></div>
+      {isAdmin && !course && sum && (
+        <div className="kpis">
+          <button className={`kpi press ${sum.requests ? 'hot' : ''}`} style={{ '--c': 'var(--orange)' }} onClick={() => setTab('requests')}><b><CountUp to={sum.requests} /></b><span>طلبات انضمام جديدة</span></button>
+          <button className={`kpi press ${sum.missing_certs ? 'hot' : ''}`} style={{ '--c': 'var(--yellow)' }} onClick={() => setTab('courses')}><b><CountUp to={sum.missing_certs} /></b><span>طلاب خلصوا دورتهم بدون شهادة</span></button>
+          <button className="kpi press" style={{ '--c': 'var(--blue)' }} onClick={() => setTab('courses')}><b><CountUp to={sum.ending_soon} /></b><span>دورات بتخلص هالأسبوع</span></button>
+          <button className="kpi press" style={{ '--c': 'var(--green)' }} onClick={() => setTab('students')}><b><CountUp to={sum.students} /></b><span>طالب مسجّل</span></button>
+        </div>
+      )}
       {isAdmin && !course && (
         <div className="seg ptabs" role="tablist">
           <button role="tab" aria-checked={tab === 'courses'} onClick={() => setTab('courses')}>الدورات</button>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
 import { friendlyError, supabase } from '../lib/supabase.js';
-import { Photo, Spinner } from '../ui.jsx';
+import { Photo, Spinner, Empty } from '../ui.jsx';
 import { Sheet } from '../sheet.jsx';
 import { courseStatus } from './Courses.jsx';
 
@@ -134,7 +134,7 @@ export function Requests({ toast, onCount }) {
             </div>
           </div>
         ))}
-        {!rows.length && <p className="empty" style={{ padding: 12 }}>ما في طلبات جديدة.</p>}
+        {!rows.length && <Empty art="inbox" title="كله تمام ✅" text="ما في طلبات انضمام جديدة." />}
       </div>
     </section>
   );
