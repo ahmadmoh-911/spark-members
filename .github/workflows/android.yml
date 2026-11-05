@@ -1,0 +1,51 @@
+# Builds the Android app (a Trusted Web Activity: it opens the live site full-screen in Chrome,
+# so it is always online and always up to date) and publishes it as spark.apk on the "android" release.
+# Run it from the Actions tab, or bump appVersionCode in android/twa-manifest.json and push.
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli@1.24.1
+      - name: Restore signing key
+        working-directory: android
+        run: echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > spark.keystore
+      - name: Configure Bubblewrap (use the runner's JDK and SDK, no prompts)
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
+          yes | sdkmanager --licenses > /dev/null || true
+      - name: Generate project
+        working-directory: android
+        run: yes "" | bubblewrap update --skipVersionUpgrade --manifest ./twa-manifest.json
+      - name: Build
+        working-directory: android
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: bubblewrap build --skipPwaValidation --manifest ./twa-manifest.json
+      - name: Rename
+        working-directory: android
+        run: cp app-release-signed.apk spark.apk
+      - name: Publish to the "android" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android
+          name: تطبيق سبارك للأندرويد
+          body: آخر نسخة من تطبيق سبارك للأندرويد. التطبيق بيفتح الموقع مباشرة، فكل التحديثات بتوصله لحالها.
+          files: android/spark.apk
+          make_latest: true

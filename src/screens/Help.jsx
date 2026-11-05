@@ -1,6 +1,7 @@
 import { useAuth } from '../lib/auth.jsx';
 import { go } from '../lib/router.js';
 import { Logo } from '../ui.jsx';
+import { APK_URL } from '../Install.jsx';
 
 const C = { green: 'var(--green)', blue: 'var(--blue)', orange: 'var(--orange)', yellow: 'var(--yellow)' };
 
@@ -71,10 +72,10 @@ export default function Help() {
 
       <Card i={i++} icon="📲" color={C.blue} title="نزّله كتطبيق">
         <ul>
-          <li><b>أندرويد:</b> اكبس زر «تثبيت» اللي بيطلعلك تحت، أو من قائمة ⋮ اختار «تثبيت التطبيق».</li>
+          <li><b>أندرويد:</b> اكبس «تنزيل» بالشريط اللي بيطلعلك تحت، أو <a href={APK_URL} style={{ color: 'var(--blue)', fontWeight: 600 }}>نزّل التطبيق من هون</a>، وافتح الملف. إذا سألك الجوال اسمح بالتثبيت من هالمصدر.</li>
           <li><b>آيفون:</b> من Safari، زر المشاركة ⬆︎، بعدين «إضافة إلى الشاشة الرئيسية».</li>
         </ul>
-        <p>وصار عندك تطبيق بدون ما تستنى المتجر 🚀</p>
+        <p>وصار عندك تطبيق بدون ما تستنى المتجر 🚀 وأي تحديث بيوصله لحاله.</p>
       </Card>
 
       {isTrainer && (
