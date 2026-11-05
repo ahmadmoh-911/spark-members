@@ -32,7 +32,7 @@ async function shrinkImage(file, max) {
   } catch { return file; }
 }
 
-const MAX_SIDE = { avatar: 800, work: 1400, story: 1600, course: 1600, cert: 2400 };
+const MAX_SIDE = { avatar: 800, cover: 1600, work: 1400, story: 1600, course: 1600, cert: 2400 };
 
 export async function uploadMedia(userId, original, prefix = 'file') {
   const file = await shrinkImage(original, MAX_SIDE[prefix] || 1600);

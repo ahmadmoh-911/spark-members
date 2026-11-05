@@ -588,3 +588,39 @@ html.app .top,html.app .bottom,html.app button{-webkit-user-select:none;user-sel
 .kpi b{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
 .kpi span{font-size:13px;color:var(--ink-2);line-height:1.4}
 .kpi.hot b{color:#D64535}
+
+/* smoothness without changing the look: keep the moving colours on their own GPU layer */
+.light{contain:strict;transform:translateZ(0)}
+.scard{transition:transform .3s var(--spring),box-shadow .2s}
+button,a,.press{touch-action:manipulation}
+/* cards: a slightly deeper shade under the name */
+.scard .ov{background:linear-gradient(0deg,rgba(6,14,28,.9),rgba(6,14,28,.55) 55%,transparent)}
+/* profile cover photo */
+.pcover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* story reactions */
+.react{position:absolute;z-index:3;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(0,0,0,.35);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.react.up{bottom:72px}
+.react button{width:44px;height:44px;border:0;border-radius:50%;background:transparent;font-size:24px;line-height:1;cursor:pointer;transition:transform .25s var(--spring),background .2s}
+.react button:active{transform:scale(.85)}
+.react button.on{background:rgba(255,255,255,.28);transform:scale(1.12)}
+.burst{position:absolute;z-index:4;left:50%;bottom:90px;font-size:64px;pointer-events:none;animation:burst .9s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes burst{0%{opacity:0;transform:translate(-50%,20px) scale(.4)}25%{opacity:1;transform:translate(-50%,-30px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-160px) scale(.9)}}
+.rsum{display:inline-flex;gap:6px;margin-inline-start:8px;padding-inline-start:8px;border-inline-start:1px solid rgba(255,255,255,.35)}
+/* course wall */
+.wall{display:grid;gap:10px;margin-bottom:12px}
+.wday{display:grid;gap:10px}
+.wlbl{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:600}
+.wlbl::before,.wlbl::after{content:"";flex:1;height:1px;background:var(--line)}
+.wpost{display:grid;gap:10px;text-align:start;padding:12px;border:0;border-radius:20px;background:var(--glass-strong);box-shadow:0 4px 14px rgba(11,26,51,.06);cursor:pointer;color:inherit;font-family:inherit;width:100%}
+.wwho{display:flex;align-items:center;gap:8px;min-width:0}
+.wwho .ph{width:34px;height:34px;border-radius:50%;flex:none}
+.wwho b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wwho span{font-size:12px;color:var(--muted);margin-inline-start:auto;flex:none}
+.wtxt{display:block;background:#000;color:#fff;border-radius:14px;padding:18px 14px;text-align:center;font-weight:700;line-height:1.7;font-family:var(--display)}
+.wmedia{position:relative;display:block;border-radius:14px;overflow:hidden;background:#000;max-height:420px}
+.wmedia img,.wmedia video{display:block;width:100%;max-height:420px;object-fit:cover}
+.wmedia .play{position:absolute;inset:0;display:grid;place-items:center;font-size:38px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+.wcap{position:absolute;inset:auto 0 0 0;padding:20px 12px 10px;color:#fff;font-size:14px;background:linear-gradient(0deg,rgba(0,0,0,.7),transparent)}
+@media (min-width:900px){.wall{max-width:640px}}
+.cover-pick{height:96px;border-radius:14px;background:linear-gradient(120deg,rgba(19,79,150,.18),rgba(244,123,32,.18),rgba(75,180,84,.18));background-size:cover;background-position:center;display:grid;place-items:center;color:var(--muted);font-size:13px;margin:4px 0 8px;border:1px solid var(--line)}
+.pcover.has-img::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(255,255,255,.35),transparent 45%)}

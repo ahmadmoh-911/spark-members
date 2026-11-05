@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { friendlyError, supabase } from '../lib/supabase.js';
-import { go, goMorph, peek } from '../lib/router.js';
-import { useAuth } from '../lib/auth.jsx';
-import { StoryStrip } from './Stories.jsx';
+import { go, peek } from '../lib/router.js';
 import { Photo, Tick, SkCards, Empty, CountUp, courseColor } from '../ui.jsx';
 
 // Order changes every 4 hours, the same for everyone in that window.
@@ -36,9 +34,10 @@ export function MemberCard({ m, i = 0 }) {
     );
   }
   const id = m.id || m.student_id;
-  const open = (e) => {
+  // the profile header renders instantly from what the card already knows
+  const open = () => {
     peek.set(id, { id, full_name: m.full_name, photo_url: m.photo_url, tagline: m.tagline, specialty: m.specialty });
-    goMorph('member/' + id, e.currentTarget.querySelector('.ph'));
+    go('member/' + id);
   };
   const dot = m.course_ids?.[0];
   return (
@@ -53,11 +52,8 @@ export function MemberCard({ m, i = 0 }) {
   );
 }
 
-const greet = () => { const h = new Date().getHours(); return h < 12 ? 'صباح الخير' : h < 18 ? 'نهارك سعيد' : 'مسا الخير'; };
-const greetIcon = () => { const h = new Date().getHours(); return h < 6 || h >= 19 ? '🌙' : h < 12 ? '☀️' : '🌤️'; };
 
 export default function Students() {
-  const { profile } = useAuth();
   const [rows, setRows] = useState(null);
   const [stats, setStats] = useState(null);
   const [err, setErr] = useState('');
@@ -72,13 +68,10 @@ export default function Students() {
     const s = q.trim();
     return (rows || []).filter((m) => !s || m.full_name?.includes(s) || m.specialty?.includes(s) || m.tagline?.includes(s));
   }, [rows, q]);
-  const first = profile?.onboarded && profile.full_name ? profile.full_name.split(' ')[0] : '';
-
   return (
     <>
       <div className="head">
         <div>
-          {first && <p className="hello">{greet()} يا {first} {greetIcon()}</p>}
           <h1>طلاب سبارك</h1>
           <p>أعضاء دورات سبارك للابتكار والإبداع</p>
         </div>
@@ -90,7 +83,6 @@ export default function Students() {
           <span><b><CountUp to={stats.stories_today} /></b>ستوري اليوم</span>
         </div>
       )}
-      <StoryStrip />
       <label className="search glass">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
         <span className="sr">بحث</span>

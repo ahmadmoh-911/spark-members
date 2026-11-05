@@ -4,6 +4,7 @@ import { SkCards, Empty } from '../ui.jsx';
 import { BackBtn } from './Member.jsx';
 import { courseStatus, coverStyle, courseTimeline } from './Courses.jsx';
 import { MemberCard } from './Students.jsx';
+import { CourseWall } from './Stories.jsx';
 
 const fmt = (d) => (d ? new Date(d + 'T00:00').toLocaleDateString('ar', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
 
@@ -41,6 +42,12 @@ export default function Course({ id }) {
         {roster.map((m, i) => <MemberCard key={m.student_id || 'seat' + i} m={m} i={i} />)}
         {!roster.length && <div style={{ gridColumn: '1/-1' }}><Empty art="people" title={courseStatus(c) === 'قريباً' ? 'الطلاب بيظهروا أول يوم بالدورة 🚀' : 'لسا ما في طلاب'} text={courseStatus(c) === 'قريباً' ? 'استنّوا الانطلاقة!' : ''} /></div>}
       </div>
+      {courseStatus(c) !== 'قريباً' && (
+        <>
+          <div className="head"><div><h1 style={{ fontSize: 22 }}>حائط الدورة</h1><p>كل ستوريات طلاب الدورة، يوم بيوم</p></div></div>
+          <CourseWall courseId={c.id} />
+        </>
+      )}
     </>
   );
 }

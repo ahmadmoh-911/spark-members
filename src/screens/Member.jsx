@@ -68,7 +68,7 @@ export default function Member({ id }) {
   useEffect(() => {
     let alive = true;
     Promise.all([
-      supabase.from('profiles').select('id,member_no,full_name,specialty,tagline,about,skills,goals,photo_url,role').eq('id', id).maybeSingle(),
+      supabase.from('profiles').select('id,member_no,full_name,specialty,tagline,about,skills,goals,photo_url,cover_url,role').eq('id', id).maybeSingle(),
       supabase.rpc('member_courses', { p_member: id }),
       supabase.rpc('member_certificates', { p_member: id }),
       supabase.from('works').select('*').eq('owner_id', id).order('id', { ascending: false }),
@@ -108,7 +108,9 @@ export default function Member({ id }) {
     <>
       {!own && <BackBtn />}
       <section className="pcard glass" style={{ marginTop: own ? 6 : 0 }}>
-        <div className="pcover" aria-hidden="true"><i /><i /><i /><i /></div>
+        <div className={`pcover ${p.cover_url ? 'has-img' : ''}`} aria-hidden="true">
+          {p.cover_url ? <img src={p.cover_url} alt="" /> : <><i /><i /><i /><i /></>}
+        </div>
         <div className="pbody">
           <span className="avatar big pav">
             <span className="ring" /><span className="gap" />

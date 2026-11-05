@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
-import { friendlyError, membershipNo, supabase, uploadAvatar } from '../lib/supabase.js';
+import { friendlyError, membershipNo, supabase, uploadAvatar, uploadMedia } from '../lib/supabase.js';
 import { Photo } from '../ui.jsx';
 import { ListInput } from '../sheet.jsx';
 
@@ -16,6 +16,8 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
   });
   const [photo, setPhoto] = useState(profile?.photo_url || google.avatar_url || '');
   const [file, setFile] = useState(null);
+  const [cover, setCover] = useState(profile?.cover_url || '');
+  const [coverFile, setCoverFile] = useState(null);
   const [skills, setSkills] = useState(profile?.skills || []);
   const [goals, setGoals] = useState(profile?.goals || []);
   const [wa, setWa] = useState('');
@@ -42,10 +44,12 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
     try {
       let photo_url = photo || null;
       if (file) photo_url = await uploadAvatar(user.id, file);
+      let cover_url = cover || null;
+      if (coverFile) cover_url = await uploadMedia(user.id, coverFile, 'cover');
       const { error } = await supabase.from('profiles').update({
         full_name: f.full_name.trim(), specialty: f.specialty.trim() || null,
         tagline: f.tagline.trim() || null, about: f.about.trim() || null,
-        photo_url, skills, goals, onboarded: true,
+        photo_url, cover_url, skills, goals, onboarded: true,
       }).eq('id', user.id);
       if (error) throw error;
       const pc = phone
@@ -69,6 +73,19 @@ export default function ProfileForm({ mode = 'onboard', onDone }) {
           <input type="file" accept="image/*" className="sr" onChange={pick} />
         </label>
         {photo && <button type="button" className="link" onClick={() => { setPhoto(''); setFile(null); }}>احذف</button>}
+      </div>
+      <div className="fld">
+        <span>صورة الغلاف (عرضية، بتطلع ورا صورتك)</span>
+        <div className="cover-pick" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
+          {!cover && <span>بدون غلاف، بتضل ألوان سبارك</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="pbtn press" style={{ cursor: 'pointer' }}>
+            {cover ? 'غيّر الغلاف' : 'أضف غلاف'}
+            <input type="file" accept="image/*" className="sr" onChange={(e) => { const fl = e.target.files?.[0]; if (fl?.type.startsWith('image/')) { setCoverFile(fl); setCover(URL.createObjectURL(fl)); } }} />
+          </label>
+          {cover && <button type="button" className="link" onClick={() => { setCover(''); setCoverFile(null); }}>احذف</button>}
+        </div>
       </div>
       <label className="fld">الاسم الكامل<input value={f.full_name} onChange={set('full_name')} autoComplete="name" maxLength={60} required /></label>
       <label className="fld">التخصص<input value={f.specialty} onChange={set('specialty')} placeholder="مثلاً: تصميم واجهات" maxLength={60} /></label>

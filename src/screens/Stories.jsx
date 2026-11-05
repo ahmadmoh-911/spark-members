@@ -254,6 +254,9 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
   const [anim, setAnim] = useState('open');
   const [closing, setClosing] = useState(false);
   const [views, setViews] = useState(null);
+  const [reacts, setReacts] = useState(null);
+  const [myReact, setMyReact] = useState(null);
+  const [burst, setBurst] = useState(null);
   const [ask, setAsk] = useState(false);
   const [dur, setDur] = useState(5);
   const [paused, setPaused] = useState(false);
@@ -322,12 +325,30 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
   // auto-advance (text/image 5s, video its own length), record the view, owner's view count
   useEffect(() => {
     if (!s) return;
-    setViews(null);
+    setViews(null); setReacts(null); setMyReact(null);
     left.current = 5000;
     if (s.kind !== 'video') setDur(5);
-    if (user && !mine) supabase.from('story_views').upsert({ story_id: s.id, viewer_id: user.id }, { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }).then(() => {});
-    if (mine || isAdmin) supabase.rpc('story_view_count', { p_story: s.id }).then(({ data }) => setViews(data ?? 0));
+    if (user && !mine) {
+      supabase.from('story_views').upsert({ story_id: s.id, viewer_id: user.id }, { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }).then(() => {});
+      supabase.from('story_reactions').select('emoji').eq('story_id', s.id).eq('user_id', user.id).maybeSingle().then(({ data }) => setMyReact(data?.emoji || null));
+    }
+    if (mine || isAdmin) {
+      supabase.rpc('story_view_count', { p_story: s.id }).then(({ data }) => setViews(data ?? 0));
+      supabase.rpc('story_reaction_counts', { p_story: s.id }).then(({ data }) => setReacts(data || []));
+    }
   }, [s?.id]);
+
+  // react: tap an emoji (tap it again to take it back); only the author sees the totals
+  const react = async (emoji) => {
+    const sid = s.id;
+    const next = myReact === emoji ? null : emoji;
+    setMyReact(next);
+    if (next) { setBurst({ emoji: next, k: Date.now() }); if (navigator.vibrate) { try { navigator.vibrate(10); } catch { /* ignore */ } } }
+    const { error } = next
+      ? await supabase.from('story_reactions').upsert({ story_id: sid, user_id: user.id, emoji: next }, { onConflict: 'story_id,user_id' })
+      : await supabase.from('story_reactions').delete().eq('story_id', sid).eq('user_id', user.id);
+    if (error) setMyReact(myReact);
+  };
 
   // run / pause the clock (long-press, centre tap, or the delete confirm)
   const halted = paused || ask || !!switching;
@@ -397,7 +418,7 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
       <article key={`${gi}-${s.id}`} className={`story ${anim}`}
         onPointerDown={(e) => {
           x0.current = e.clientX;
-          if (e.target.closest('.shead,.sfoot,.confirm')) return;
+          if (e.target.closest('.shead,.sfoot,.confirm,.react')) return;
           hold.current.held = false;
           hold.current.t = setTimeout(() => { hold.current.held = true; setPaused(true); }, 220);
         }}
@@ -435,6 +456,7 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
             {views != null ? (
               <span className="gbtn" role="status" aria-label={`شافها ${views}`}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>{views}
+                {reacts?.length > 0 && <span className="rsum">{reacts.map((r) => <span key={r.emoji}>{r.emoji}{r.n}</span>)}</span>}
               </span>
             ) : <span />}
             <button className="gbtn press" onClick={() => setAsk(true)}>
@@ -442,6 +464,14 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
             </button>
           </footer>
         )}
+        {user && !mine && !ask && (
+          <div className={`react ${isAdmin ? 'up' : ''}`} role="group" aria-label="تفاعل مع الستوري">
+            {['❤️', '👏', '🔥', '🎉'].map((e) => (
+              <button key={e} className={myReact === e ? 'on' : ''} aria-pressed={myReact === e} aria-label={`تفاعل ${e}`} onClick={() => react(e)}>{e}</button>
+            ))}
+          </div>
+        )}
+        {burst && <span key={burst.k} className="burst" aria-hidden="true">{burst.emoji}</span>}
         {ask && (
           <div className="confirm" role="alertdialog" aria-label="تأكيد الحذف">
             <span>{mine ? 'بدك تحذف هالستوري؟ ما بتقدر ترجّعها.' : `حذف ستوري ${g.author?.full_name}؟ (صلاحية الإدارة)`}</span>
@@ -475,6 +505,60 @@ export function ArchiveButton({ member }) {
       </button>
       {open && <Viewer groups={[{ author: list[0].author, stories: list }]} start={0} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+// Course wall: every story posted for this course, newest first, grouped by day
+const dayLabel = (t) => {
+  const d = new Date(t); const today = new Date(); const y = new Date(); y.setDate(today.getDate() - 1);
+  const same = (a, b) => a.toDateString() === b.toDateString();
+  return same(d, today) ? 'اليوم' : same(d, y) ? 'مبارح' : d.toLocaleDateString('ar', { weekday: 'long', day: 'numeric', month: 'long' });
+};
+export function CourseWall({ courseId }) {
+  const [list, setList] = useState(null);
+  const [limit, setLimit] = useState(30);
+  const [open, setOpen] = useState(null);
+  const load = useCallback(() => {
+    supabase.from('stories').select(SELECT).eq('course_id', courseId).order('created_at', { ascending: false }).limit(limit + 1)
+      .then(({ data }) => setList(data || []));
+  }, [courseId, limit]);
+  useEffect(() => { load(); }, [load]);
+  if (!list) return <div className="wall"><div className="sk" style={{ height: 120, borderRadius: 18 }} /><div className="sk" style={{ height: 120, borderRadius: 18 }} /></div>;
+  if (!list.length) return <Empty art="stories" title="الحائط فاضي لسا" text="ستوريات طلاب الدورة بتتجمّع هون، كل يوم بيومه." />;
+  const shown = list.slice(0, limit);
+  const days = [];
+  for (const st of shown) {
+    const lbl = dayLabel(st.created_at);
+    if (!days.length || days[days.length - 1].lbl !== lbl) days.push({ lbl, items: [] });
+    days[days.length - 1].items.push(st);
+  }
+  const openAt = (st) => {
+    const groups = group(shown);
+    const gi = groups.findIndex((g) => g.author?.id === st.author_id);
+    setOpen({ groups, gi, si: groups[gi].stories.findIndex((x) => x.id === st.id) });
+  };
+  return (
+    <div className="wall">
+      {days.map((d) => (
+        <div key={d.lbl} className="wday">
+          <div className="wlbl"><span>{d.lbl}</span></div>
+          {d.items.map((st) => (
+            <button key={st.id} className="wpost press" onClick={() => openAt(st)}>
+              <span className="wwho">
+                <Photo url={st.author?.photo_url} id={st.author_id} />
+                <b>{st.author?.full_name}</b>
+                <span>{ago(st.created_at)}</span>
+              </span>
+              {st.kind === 'text' && <span className="wtxt">{st.body}</span>}
+              {st.kind === 'image' && <span className="wmedia"><img src={st.media_url} alt="" loading="lazy" />{st.body && <span className="wcap">{st.body}</span>}</span>}
+              {st.kind === 'video' && <span className="wmedia"><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span>{st.body && <span className="wcap">{st.body}</span>}</span>}
+            </button>
+          ))}
+        </div>
+      ))}
+      {list.length > limit && <button className="ghost press" onClick={() => setLimit(limit + 30)}>اعرض أقدم</button>}
+      {open && <Viewer groups={open.groups} start={open.gi} startStory={open.si} onClose={() => { setOpen(null); load(); }} />}
+    </div>
   );
 }
 
