@@ -21,7 +21,7 @@
     "path": "./spark.keystore",
     "alias": "spark"
   },
-  "appVersionCode": 5,
+  "appVersionCode": 6,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://ahmadmoh-911.github.io/spark-members/manifest.webmanifest",
@@ -30,10 +30,10 @@
   "alphaDependencies": {
     "enabled": false
   },
-  "enableSiteSettingsShortcut": false,
+  "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://ahmadmoh-911.github.io/spark-members/",
   "minSdkVersion": 24,
-  "appVersion": "1.4.0"
+  "appVersion": "1.5.0"
 }
