@@ -156,7 +156,9 @@ export function CountUp({ to = 0, ms = 900 }) {
     let raf; const t0 = performance.now();
     const step = (t) => { const k = Math.min(1, (t - t0) / ms); setV(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); };
     raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    // rAF doesn't run in background tabs: make sure the real number always lands
+    const done = setTimeout(() => setV(to), ms + 150);
+    return () => { cancelAnimationFrame(raf); clearTimeout(done); };
   }, [to, ms]);
   return <>{v}</>;
 }
