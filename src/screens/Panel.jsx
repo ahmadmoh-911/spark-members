@@ -4,6 +4,7 @@ import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
 import { Photo, Spinner } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 import { courseStatus, coverStyle } from './Courses.jsx';
+import { Requests } from './Join.jsx';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIER = { silver: 'فضي', gold: 'ذهبي', diamond: 'ماسي' };
@@ -12,6 +13,10 @@ const TIER = { silver: 'فضي', gold: 'ذهبي', diamond: 'ماسي' };
 export default function Panel() {
   const { isAdmin, isTrainer, user } = useAuth();
   const [tab, setTab] = useState('courses');
+  const [reqCount, setReqCount] = useState(0);
+  useEffect(() => {
+    if (isAdmin) supabase.rpc('admin_join_requests').then(({ data }) => setReqCount(data?.length || 0));
+  }, [isAdmin, tab]);
   const [course, setCourse] = useState(null);
   const [msg, setMsg] = useState('');
   if (!isTrainer) return <p className="empty">هاي الصفحة للإدارة والمدربين بس.</p>;
@@ -19,13 +24,17 @@ export default function Panel() {
     <>
       <div className="head"><div><h1>{isAdmin ? 'لوحة الإدارة' : 'لوحة المدرب'}</h1><p>{isAdmin ? 'الدورات والطلاب والمدربين والشهادات' : 'طلاب دوراتك وتقييمهم'}</p></div></div>
       {isAdmin && !course && (
-        <div className="seg" role="tablist" style={{ gridTemplateColumns: '1fr 1fr', maxWidth: 420 }}>
+        <div className="seg ptabs" role="tablist">
           <button role="tab" aria-checked={tab === 'courses'} onClick={() => setTab('courses')}>الدورات</button>
-          <button role="tab" aria-checked={tab === 'staff'} onClick={() => setTab('staff')}>المدربين والإدارة</button>
+          <button role="tab" aria-checked={tab === 'requests'} onClick={() => setTab('requests')}>الطلبات{reqCount > 0 && <span className="badge">{reqCount}</span>}</button>
+          <button role="tab" aria-checked={tab === 'students'} onClick={() => setTab('students')}>الطلاب</button>
+          <button role="tab" aria-checked={tab === 'staff'} onClick={() => setTab('staff')}>الطاقم</button>
         </div>
       )}
       {course ? <CourseManage c={course} onBack={() => setCourse(null)} toast={setMsg} />
         : tab === 'staff' && isAdmin ? <Staff me={user.email} toast={setMsg} />
+        : tab === 'requests' && isAdmin ? <Requests toast={setMsg} onCount={setReqCount} />
+        : tab === 'students' && isAdmin ? <AllStudents toast={setMsg} />
           : <CourseList onOpen={setCourse} toast={setMsg} />}
       <Toast msg={msg} onDone={() => setMsg('')} />
     </>
@@ -318,6 +327,41 @@ function Welcome({ c, emails, onClose }) {
       <button className="ghost press" onClick={onClose}>تخطّي</button>
       <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>الإيميلات بتنحط كنسخة مخفية (BCC)، فما حدا بيشوف إيميل التاني.</p>
     </Sheet>
+  );
+}
+
+// every student in any course (past or current): compact rows, name first, email under it
+function AllStudents({ toast }) {
+  const [rows, setRows] = useState(null);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    supabase.rpc('admin_students').then(({ data, error }) => { if (error) toast(friendlyError(error)); else setRows(data); });
+  }, []);
+  if (!rows) return <Spinner />;
+  const s = q.trim().toLowerCase();
+  const list = rows.filter((r) => !s || (r.full_name || '').toLowerCase().includes(s) || (r.email || '').includes(s));
+  return (
+    <section className="sec glass">
+      <h2>كل الطلاب ({rows.length})</h2>
+      <label className="search" style={{ background: 'var(--glass-strong)', border: '1px solid var(--line)' }}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
+        <span className="sr">بحث</span>
+        <input type="search" placeholder="دوّر باسم أو إيميل" value={q} onChange={(e) => setQ(e.target.value)} />
+      </label>
+      <div className="slist">
+        {list.map((r, i) => (
+          <div key={r.student_id || r.email} className="srow" style={{ animationDelay: `${Math.min(i, 20) * 20}ms` }}>
+            <Photo url={r.photo_url} id={r.student_id || r.email} />
+            <span className="t">
+              <b>{r.full_name || 'لسا ما سجّل'}</b>
+              <span dir="ltr">{r.email}</span>
+            </span>
+            {r.course_count > 1 && <span className="chip" title="عدد الدورات">{r.course_count} دورات</span>}
+          </div>
+        ))}
+        {!list.length && <p className="empty" style={{ padding: 12 }}>{rows.length ? 'ما في نتائج.' : 'لسا ما في طلاب.'}</p>}
+      </div>
+    </section>
   );
 }
 

@@ -6,6 +6,7 @@ import { LOGO_DARK, Photo, Spinner, TierRow, Tick } from '../ui.jsx';
 import ProfileForm from './ProfileForm.jsx';
 import Works from './Works.jsx';
 import { ArchiveButton } from './Stories.jsx';
+import { JoinCard } from './Join.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
@@ -99,6 +100,8 @@ export default function Member({ id }) {
       {own && p.role === 'student' && !d.visible && (
         <div className="hidden-note">عضويتك مخفية عن الناس لحد ما الإدارة تضيف إيميلك على دورة وتبلّش.</div>
       )}
+
+      {own && p.role === 'student' && <div style={{ marginTop: 12 }}><JoinCard myCourses={courses} toast={setMsg} /></div>}
 
       <div className="pcols">
         <div style={{ display: 'grid', gap: 12 }}>
