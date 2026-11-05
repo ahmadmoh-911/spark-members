@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { friendlyError, supabase } from '../lib/supabase.js';
 import { go, peek } from '../lib/router.js';
-import { Photo, Tick, SkCards, Empty, CountUp, courseColor } from '../ui.jsx';
+import { Photo, Tick, SkCards, Empty, CountUp } from '../ui.jsx';
 
 // Order changes every 4 hours, the same for everyone in that window.
 // No member keeps the spot they had in the previous window.
@@ -39,11 +39,9 @@ export function MemberCard({ m, i = 0 }) {
     peek.set(id, { id, full_name: m.full_name, photo_url: m.photo_url, tagline: m.tagline, specialty: m.specialty });
     go('member/' + id);
   };
-  const dot = m.course_ids?.[0];
   return (
     <button className="scard press tilt" style={{ animationDelay: `${Math.min(i, 18) * 30}ms` }} onClick={open} aria-label={m.full_name}>
       <Photo url={m.photo_url} id={id} />
-      {dot && <span className="cdot" style={{ '--c': courseColor(dot) }} aria-hidden="true" />}
       <span className="ov">
         <span className="name"><span className="nm">{m.full_name}</span>{m.course_count >= 2 && <Tick />}</span>
         {(m.tagline || m.specialty) && <span className="q">{m.tagline || m.specialty}</span>}
