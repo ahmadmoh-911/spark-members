@@ -13,10 +13,33 @@ export const membershipNo = (n) => (n ? `SPK-M-${String(n).padStart(4, '0')}` : 
 
 export const uploadAvatar = (userId, file) => uploadMedia(userId, file, 'avatar');
 
-export async function uploadMedia(userId, file, prefix = 'file') {
+// Phone photos are often 3–8 MB. Shrink them before upload (longest side ≤ max, WebP/JPEG ~80%):
+// faster for students on weak connections and ~20x less bandwidth for everyone viewing them.
+async function shrinkImage(file, max) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 250 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const type = canvas.toDataURL('image/webp').startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+    const blob = await new Promise((res) => canvas.toBlob(res, type, 0.8));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, type === 'image/webp' ? '.webp' : '.jpg'), { type });
+  } catch { return file; }
+}
+
+const MAX_SIDE = { avatar: 800, work: 1400, story: 1600, course: 1600, cert: 2400 };
+
+export async function uploadMedia(userId, original, prefix = 'file') {
+  const file = await shrinkImage(original, MAX_SIDE[prefix] || 1600);
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
   const path = `u/${userId}/${prefix}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from('media').upload(path, file, { contentType: file.type, upsert: false });
+  // file names never change, so browsers and the CDN may keep them for a year
+  const { error } = await supabase.storage.from('media').upload(path, file, { contentType: file.type, upsert: false, cacheControl: '31536000' });
   if (error) throw error;
   return supabase.storage.from('media').getPublicUrl(path).data.publicUrl;
 }

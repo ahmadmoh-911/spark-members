@@ -127,7 +127,7 @@ function Composer({ courses, onClose, onPosted }) {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith(kind === 'video' ? 'video/' : 'image/')) { setErr(kind === 'video' ? 'اختار ملف فيديو.' : 'اختار صورة.'); return; }
-    if (f.size > 50 * 1024 * 1024) { setErr('الملف أكبر من 50 ميغا.'); return; }
+    if (f.size > (kind === 'video' ? 25 : 50) * 1024 * 1024) { setErr(kind === 'video' ? 'الفيديو أكبر من 25 ميغا. صوّر مقطع أقصر.' : 'الملف أكبر من 50 ميغا.'); return; }
     setErr(''); setFile(f);
   };
   const publish = async () => {
