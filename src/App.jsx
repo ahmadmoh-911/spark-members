@@ -10,6 +10,7 @@ import Member from './screens/Member.jsx';
 import Stories from './screens/Stories.jsx';
 import Panel from './screens/Panel.jsx';
 import Install from './Install.jsx';
+import AppUpdate from './AppUpdate.jsx';
 import Help, { HelpFab } from './screens/Help.jsx';
 import { useEffect } from 'react';
 
@@ -98,6 +99,7 @@ export default function App() {
       </main>
       {!needsOnboarding && <BottomBar tab={route.tab} />}
       <Install />
+      <AppUpdate />
       {!needsOnboarding && route.page !== 'help' && <HelpFab />}
     </>
   );

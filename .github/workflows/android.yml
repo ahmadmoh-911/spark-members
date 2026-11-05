@@ -30,6 +30,12 @@ jobs:
           # Bubblewrap looks for <sdk>/tools/bin/sdkmanager; the runner ships it under cmdline-tools/latest
           [ -e "$ANDROID_HOME/tools" ] || sudo ln -s "$ANDROID_HOME/cmdline-tools/latest" "$ANDROID_HOME/tools"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - name: Stamp the version into the start URL (the site uses it to spot old installs)
+        working-directory: android
+        run: |
+          v=$(jq -r .appVersionCode twa-manifest.json)
+          jq --arg u "/spark-members/?apk=$v" '.startUrl = $u' twa-manifest.json > t.json && mv t.json twa-manifest.json
+          echo "Building appVersionCode $v"
       - name: Generate project
         working-directory: android
         run: yes "" | bubblewrap update --skipVersionUpgrade --manifest ./twa-manifest.json
