@@ -1,0 +1,45 @@
+name: Maintenance
+
+# Daily: keep the free Supabase project awake + expire old videos.
+# Weekly (Friday): encrypted backup of every table, kept here as an artifact for 90 days.
+# The backup is encrypted with Spark's public key; only the private key (kept offline) can open it.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      backup:
+        description: "Take a backup now"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  upkeep:
+    runs-on: ubuntu-latest
+    env:
+      FN: https://eqifcrpkwyzvgdbwzydg.supabase.co/functions/v1/maintenance
+    steps:
+      - name: Keep the project awake
+        run: curl -fsS --retry 3 "$FN?job=ping"
+      - name: Expire old videos
+        run: curl -fsS --retry 3 "$FN?job=cleanup"
+      - name: Encrypted backup
+        if: github.event_name == 'schedule' || inputs.backup
+        id: backup
+        run: |
+          # weekly on Fridays for the schedule; any time when run by hand
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%u)" != "5" ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          name="spark-backup-$(date -u +%Y-%m-%d)"
+          curl -fsS --retry 3 "$FN?job=backup" -o "$name.enc.json"
+          python3 -c "import json,sys; b=json.load(open('$name.enc.json')); assert b.get('alg') and len(b['data'])>100, b"
+          ls -la "$name.enc.json"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.backup.outputs.name
+        with:
+          name: ${{ steps.backup.outputs.name }}
+          path: ${{ steps.backup.outputs.name }}.enc.json
+          retention-days: 90
