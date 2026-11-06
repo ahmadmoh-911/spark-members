@@ -254,6 +254,14 @@ export default function Member({ id }) {
         </div>
       )}
 
+      {own && (
+        <footer className="credit">
+          <span className="cl">تصميم وتطوير التطبيق</span>
+          <span>للتواصل والاقتراحات أو الإبلاغ عن مشكلة:</span>
+          <a href="mailto:jamrahteam@gmail.com?subject=%D8%B7%D9%84%D8%A7%D8%A8%20%D8%B3%D8%A8%D8%A7%D8%B1%D9%83" dir="ltr" className="press">jamrahteam@gmail.com</a>
+        </footer>
+      )}
+
       {editing && (
         <Sheet title="تعديل العضوية" onClose={() => setEditing(false)}>
           {(close) => <ProfileForm mode="edit" onDone={() => { close(); setMsg('انحفظت التعديلات'); }} />}

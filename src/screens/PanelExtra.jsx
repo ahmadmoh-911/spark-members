@@ -3,7 +3,7 @@ import { friendlyError, supabase } from '../lib/supabase.js';
 import { go } from '../lib/router.js';
 import { Photo, Spinner, CountUp } from '../ui.jsx';
 
-const dayName = (d) => new Date(d + 'T00:00').toLocaleDateString('ar', { weekday: 'short' });
+const dayName = (d) => String(new Date(d + 'T00:00').getDate());
 const since = (t) => {
   if (!t) return 'ولا ستوري لسا';
   const days = Math.floor((Date.now() - new Date(t)) / 864e5);

@@ -28,9 +28,9 @@ export function installPullToRefresh(onRefresh) {
     if (y0 == null) return;
     y0 = null;
     if (dy >= 75) {
-      busy = true; el.classList.add('spin'); el.style.transform = 'translate(-50%, 18px)';
+      busy = true; el.classList.add('busy'); el.style.transform = 'translate(-50%, 18px)';
       onRefresh();
-      setTimeout(() => { busy = false; el.classList.remove('spin', 'ready'); el.style.opacity = '0'; el.style.transform = 'translate(-50%, -60px)'; }, 900);
+      setTimeout(() => { busy = false; el.classList.remove('busy', 'ready'); el.style.opacity = '0'; el.style.transform = 'translate(-50%, -60px)'; }, 900);
     } else { el.style.opacity = '0'; el.style.transform = 'translate(-50%, -60px)'; }
     dy = 0;
   }, { passive: true });
