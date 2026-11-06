@@ -52,7 +52,7 @@ function JoinSheet({ taken, onClose, onSent }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   useEffect(() => {
-    supabase.rpc('public_courses').then(({ data, error }) => {
+    supabase.rpc('public_courses', undefined, { get: true }).then(({ data, error }) => {
       if (error) { setErr(friendlyError(error)); return; }
       setCourses((data || []).filter((c) => c.end_date >= today() && !taken.has(c.id)).sort((a, b) => (a.start_date > b.start_date ? 1 : -1)));
     });

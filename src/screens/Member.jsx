@@ -15,7 +15,8 @@ const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 const ROLE = { admin: 'إدارة', trainer: 'مدرب' };
 const TABS = [['about', 'عنّي'], ['certs', 'الشهادات'], ['works', 'الأعمال'], ['stories', 'الستوريات']];
 const isPdf = (u = '') => /\.pdf($|\?)/i.test(u);
-export const memberLink = (id) => `${location.origin}${import.meta.env.BASE_URL}#/member/${id}`;
+// /p/<id>/ is a static page with a preview card for WhatsApp & co., which forwards into the app
+export const memberLink = (id) => `${location.origin}${import.meta.env.BASE_URL}p/${id}/`;
 
 export function BackBtn({ to = 'students' }) {
   return (
@@ -69,11 +70,11 @@ export default function Member({ id }) {
     let alive = true;
     Promise.all([
       supabase.from('profiles').select('id,member_no,full_name,specialty,tagline,about,skills,goals,photo_url,cover_url,role').eq('id', id).maybeSingle(),
-      supabase.rpc('member_courses', { p_member: id }),
-      supabase.rpc('member_certificates', { p_member: id }),
+      supabase.rpc('member_courses', { p_member: id }, { get: true }),
+      supabase.rpc('member_certificates', { p_member: id }, { get: true }),
       supabase.from('works').select('*').eq('owner_id', id).order('id', { ascending: false }),
-      supabase.rpc('member_visible', { p_member: id }),
-      supabase.rpc('member_stats', { p_member: id }),
+      supabase.rpc('member_visible', { p_member: id }, { get: true }),
+      supabase.rpc('member_stats', { p_member: id }, { get: true }),
     ]).then(([p, c, cert, w, vis, st]) => {
       if (!alive) return;
       const e = p.error || c.error || cert.error || w.error;

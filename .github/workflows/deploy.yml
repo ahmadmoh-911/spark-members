@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # refresh the profile preview cards (new members, new photos)
+  schedule:
+    - cron: "41 */3 * * *"
 permissions:
   contents: read
   pages: write
@@ -23,6 +26,10 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Profile preview cards
+        run: |
+          npx playwright install --with-deps chromium >/dev/null
+          node scripts/build-share.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

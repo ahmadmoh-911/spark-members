@@ -2,17 +2,38 @@ import { useAuth } from './lib/auth.jsx';
 import { go, useRoute } from './lib/router.js';
 import { Light, Logo, Photo, Spinner } from './ui.jsx';
 import Login from './screens/Login.jsx';
-import ProfileForm from './screens/ProfileForm.jsx';
 import Students from './screens/Students.jsx';
-import Courses from './screens/Courses.jsx';
-import Course from './screens/Course.jsx';
-import Member from './screens/Member.jsx';
-import Stories from './screens/Stories.jsx';
-import Panel from './screens/Panel.jsx';
 import Install from './Install.jsx';
+import { Toast } from './sheet.jsx';
 import AppUpdate from './AppUpdate.jsx';
-import Help, { HelpFab } from './screens/Help.jsx';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+
+// only the home grid ships in the first download; every other screen loads on demand
+// (and is fetched quietly in the background right after the first paint)
+const load = {
+  ProfileForm: () => import('./screens/ProfileForm.jsx'),
+  Courses: () => import('./screens/Courses.jsx'),
+  Course: () => import('./screens/Course.jsx'),
+  Member: () => import('./screens/Member.jsx'),
+  Stories: () => import('./screens/Stories.jsx'),
+  Panel: () => import('./screens/Panel.jsx'),
+  Help: () => import('./screens/Help.jsx'),
+};
+const ProfileForm = lazy(load.ProfileForm);
+const Courses = lazy(load.Courses);
+const Course = lazy(load.Course);
+const Member = lazy(load.Member);
+const Stories = lazy(load.Stories);
+const Panel = lazy(load.Panel);
+const Help = lazy(load.Help);
+
+function HelpFab() {
+  return (
+    <a className="hfab press" href="#/help" aria-label="شو هاد التطبيق وكيف بستعمله؟">
+      <span aria-hidden="true">؟</span>
+    </a>
+  );
+}
 import { installPullToRefresh, installSwipeNav } from './gestures.js';
 
 const NAV = [
@@ -66,11 +87,28 @@ export default function App() {
   const { ready, user, needsOnboarding } = useAuth();
   const route = useRoute();
   const [refresh, setRefresh] = useState(0);
+  const [note, setNote] = useState('');
+  const [online, setOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const up = () => setOnline(true), down = () => setOnline(false);
+    addEventListener('online', up); addEventListener('offline', down);
+    return () => { removeEventListener('online', up); removeEventListener('offline', down); };
+  }, []);
+  // stories saved while offline went out
+  useEffect(() => {
+    const on = (e) => { setNote(e.detail > 1 ? `انتشرت ${e.detail} ستوريات كانت مستنية النت ✅` : 'انتشرت الستوري اللي كانت مستنية النت ✅'); setRefresh((n) => n + 1); };
+    addEventListener('outbox-sent', on);
+    return () => removeEventListener('outbox-sent', on);
+  }, []);
 
   // native-app gestures: pull to refresh, swipe between tabs / back
   useEffect(() => {
     installPullToRefresh(() => setRefresh((n) => n + 1));
     installSwipeNav();
+    // warm the other screens once the first one is on screen
+    const warm = () => ['Member', 'Stories', 'Courses', 'Course', 'Help', 'ProfileForm'].forEach((k) => load[k]().catch(() => {}));
+    const id = window.requestIdleCallback ? requestIdleCallback(warm, { timeout: 4000 }) : setTimeout(warm, 2500);
+    return () => (window.cancelIdleCallback ? cancelIdleCallback(id) : clearTimeout(id));
   }, []);
 
   // hand over from the HTML splash once the session is known (shown at least ~1.8s, never extra after that)
@@ -104,12 +142,14 @@ export default function App() {
     <>
       <Light />
       <TopBar />
+      {!online && <div className="offline" role="status">📶 ما في إنترنت. بتشوف آخر نسخة محفوظة، والستوريات بتنتشر لما يرجع النت.</div>}
       <main className="wrap gut">
-        <div key={`${route.key ?? 'first'}-${refresh}`} className={`view ${refresh && route.anim !== 'no-anim' ? 'tab-anim' : route.anim}`}>{body}</div>
+        <div key={`${route.key ?? 'first'}-${refresh}`} className={`view ${refresh && route.anim !== 'no-anim' ? 'tab-anim' : route.anim}`}><Suspense fallback={<Spinner />}>{body}</Suspense></div>
       </main>
       {!needsOnboarding && <BottomBar tab={route.tab} />}
       <Install />
       <AppUpdate />
+      <Toast msg={note} onDone={() => setNote('')} />
       {!needsOnboarding && route.page !== 'help' && <HelpFab />}
     </>
   );

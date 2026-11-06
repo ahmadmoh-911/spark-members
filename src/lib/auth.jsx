@@ -55,7 +55,8 @@ export function AuthProvider({ children }) {
     provider: 'google',
     options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } },
   });
-  const signOut = () => supabase.auth.signOut();
+  // forget this account's cached data on this device
+  const signOut = () => supabase.auth.signOut().finally(() => { try { caches.delete('spark-api'); } catch { /* no cache api */ } });
 
   const value = {
     ready, session, profile, enrolled,

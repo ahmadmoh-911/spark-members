@@ -47,7 +47,7 @@ export default function Courses() {
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => {
-    supabase.rpc('public_courses').then(({ data, error }) => {
+    supabase.rpc('public_courses', undefined, { get: true }).then(({ data, error }) => {
       if (error) setErr(friendlyError(error)); else setRows(data);
     });
   }, []);

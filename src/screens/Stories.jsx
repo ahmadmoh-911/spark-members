@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth.jsx';
-import { friendlyError, supabase, uploadMedia } from '../lib/supabase.js';
+import { friendlyError, supabase } from '../lib/supabase.js';
+import { MAX_SECONDS, videoInfo } from '../lib/video.js';
+import { postStory, queueStory } from '../lib/outbox.js';
 import { go } from '../lib/router.js';
 import { Photo, Spinner, Empty, celebrate } from '../ui.jsx';
 import { Sheet, Toast } from '../sheet.jsx';
 
 const DAY = 24 * 60 * 60 * 1000;
-const SELECT = 'id,author_id,course_id,kind,body,media_url,created_at,author:profiles!stories_author_id_fkey(id,full_name,photo_url),course:courses(title,category)';
+const SELECT = 'id,author_id,course_id,kind,body,media_url,thumb_url,created_at,author:profiles!stories_author_id_fkey(id,full_name,photo_url),course:courses(title,category)';
 export const STORY_SELECT = SELECT;
 const DOTS = ['var(--green)', 'var(--blue)', 'var(--orange)', 'var(--yellow)'];
 
@@ -37,7 +39,7 @@ export function usePostable() {
   useEffect(() => {
     if (!user) { setCourses([]); return; }
     const today = new Date().toLocaleDateString('en-CA');
-    supabase.rpc('member_courses', { p_member: user.id }).then(({ data }) => {
+    supabase.rpc('member_courses', { p_member: user.id }, { get: true }).then(({ data }) => {
       setCourses((data || []).filter((c) => c.start_date && c.start_date <= today));
     });
   }, [user]);
@@ -151,7 +153,7 @@ export default function Stories() {
       {user && !canPost && profile?.role === 'student' && <div className="note glass">بتقدر تنزّل ستوريات لما تبلّش دورتك.</div>}
 
       {open && <Viewer groups={open.list} start={open.i} startStory={open.si || 0} onClose={() => { setOpen(null); load(); }} onDeleted={() => setMsg('انحذفت الستوري')} />}
-      {composing && <Composer courses={postable} initialKind={composing} onClose={() => setComposing(false)} onPosted={() => { setComposing(false); setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
+      {composing && <Composer courses={postable} initialKind={composing} onClose={() => setComposing(false)} onPosted={(how) => { setComposing(false); if (how === 'queued') { setMsg('ما في نت هلأ. الستوري محفوظة وبتنتشر لحالها أول ما يرجع النت 📶'); return; } setMsg(maybeCelebrateFirstStory(user.id) ? 'أول ستوري إلك! 🎉 بتضل 24 ساعة' : 'انتشرت الستوري لمدة 24 ساعة'); load(); }} />}
       <Toast msg={msg} onDone={() => setMsg('')} />
     </>
   );
@@ -247,6 +249,7 @@ function Composer({ courses, initialKind = 'text', onClose, onPosted }) {
   const [file, setFile] = useState(null);
   const [course, setCourse] = useState(courses.find((c) => !c.end_date || c.end_date >= new Date().toLocaleDateString('en-CA'))?.course_id ?? courses[0]?.course_id);
   const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null); // video preparation 0..1
   const [err, setErr] = useState('');
   const preview = file ? URL.createObjectURL(file) : '';
 
@@ -254,20 +257,31 @@ function Composer({ courses, initialKind = 'text', onClose, onPosted }) {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith(kind === 'video' ? 'video/' : 'image/')) { setErr(kind === 'video' ? 'اختار ملف فيديو.' : 'اختار صورة.'); return; }
-    if (f.size > (kind === 'video' ? 25 : 50) * 1024 * 1024) { setErr(kind === 'video' ? 'الفيديو أكبر من 25 ميغا. صوّر مقطع أقصر.' : 'الملف أكبر من 50 ميغا.'); return; }
+    if (f.size > (kind === 'video' ? 300 : 50) * 1024 * 1024) { setErr(kind === 'video' ? 'الفيديو كبير كتير. صوّر مقطع أقصر.' : 'الملف أكبر من 50 ميغا.'); return; }
     setErr(''); setFile(f);
+    if (kind === 'video') videoInfo(f).then((i) => i.duration > MAX_SECONDS + 1 && setErr(`الفيديو أطول من ${MAX_SECONDS} ثانية، رح ننشر أول ${MAX_SECONDS} ثانية منه بس.`)).catch(() => {});
   };
   const publish = async () => {
     if (kind === 'text' && !text.trim()) { setErr('اكتب إشي.'); return; }
     if (kind !== 'text' && !file) { setErr(kind === 'video' ? 'اختار فيديو.' : 'اختار صورة.'); return; }
     if (!course) { setErr('اختار الدورة.'); return; }
     setBusy(true); setErr('');
+    const item = { user_id: user.id, course_id: course, kind, body: text.trim(), file: kind === 'text' ? null : file };
+    // no internet: keep it on the phone and send it by itself later
+    if (!navigator.onLine) {
+      try { await queueStory(item); onPosted('queued'); } catch (x) { setErr(friendlyError(x)); setBusy(false); }
+      return;
+    }
     try {
-      const media_url = kind === 'text' ? null : await uploadMedia(user.id, file, 'story');
-      const { error } = await supabase.from('stories').insert({ author_id: user.id, course_id: course, kind, body: text.trim() || null, media_url });
-      if (error) throw error;
+      await postStory(user.id, item, setProg);
       onPosted();
-    } catch (x) { setErr(friendlyError(x)); setBusy(false); }
+    } catch (x) {
+      setProg(null);
+      if (/Failed to fetch|NetworkError|Load failed/i.test(x?.message || '')) {
+        try { await queueStory(item); onPosted('queued'); return; } catch { /* fall through */ }
+      }
+      setErr(friendlyError(x)); setBusy(false);
+    }
   };
 
   return (
@@ -306,7 +320,12 @@ function Composer({ courses, initialKind = 'text', onClose, onPosted }) {
         </fieldset>
       )}
       {err && <div className="err" role="alert">{err}</div>}
-      <button className="cta press" onClick={publish} disabled={busy}>{busy ? (kind === 'text' ? 'جارٍ النشر…' : 'جارٍ الرفع…') : 'انشر لمدة 24 ساعة'}</button>
+      {prog !== null && (
+        <div className="vprog" role="progressbar" aria-valuenow={Math.round(prog * 100)} aria-valuemin={0} aria-valuemax={100}>
+          <i style={{ width: `${prog * 100}%` }} /><span>بجهّز الفيديو عشان يطلع خفيف… {Math.round(prog * 100)}% · خليك على هالشاشة</span>
+        </div>
+      )}
+      <button className="cta press" onClick={publish} disabled={busy}>{busy ? (prog !== null ? 'بجهّز الفيديو…' : kind === 'text' ? 'جارٍ النشر…' : 'جارٍ الرفع…') : 'انشر لمدة 24 ساعة'}</button>
     </Sheet>
   );
 }
@@ -503,7 +522,7 @@ export function Viewer({ groups: initial, start = 0, startStory = 0, onClose, on
         <div className="smid">
           {s.kind === 'image' && <img src={s.media_url} alt={s.body || 'صورة ستوري'} />}
           {s.kind === 'video' && (
-            <video ref={video} src={s.media_url} autoPlay playsInline
+            <video ref={video} src={s.media_url} poster={s.thumb_url || undefined} autoPlay playsInline
               onLoadedMetadata={(e) => setDur(Math.min(60, e.currentTarget.duration || 15))} onEnded={() => step(1)} />
           )}
           {s.kind === 'text' && <div className="txt2">{s.body}</div>}
@@ -617,7 +636,7 @@ export function CourseWall({ courseId }) {
       {chain.map(({ st, tilt, lift, size }, i) => (
         <button key={st.id} className="link press" style={{ '--t': `${tilt}deg`, '--y': `${lift}px`, '--s': size, animationDelay: `${Math.min(i, 20) * 25}ms` }} onClick={() => openAt(st)} aria-label={`ستوري ${st.author?.full_name}`}>
           {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" decoding="async" />}
-          {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+          {st.kind === 'video' && <><video src={st.media_url} poster={st.thumb_url || undefined} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
           {st.kind === 'text' && <span className="ltxt">{st.body}</span>}
           <span className="who"><Photo url={st.author?.photo_url} id={st.author_id} /></span>
         </button>
@@ -645,7 +664,7 @@ export function StoryGrid({ member }) {
         {newestFirst.map((st) => (
           <button key={st.id} className="stile press" onClick={() => setOpen(list.indexOf(st))} aria-label={`ستوري ${ago(st.created_at)}`}>
             {st.kind === 'image' && <img src={st.media_url} alt="" loading="lazy" />}
-            {st.kind === 'video' && <><video src={st.media_url} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
+            {st.kind === 'video' && <><video src={st.media_url} poster={st.thumb_url || undefined} muted playsInline preload="metadata" /><span className="play" aria-hidden="true">▶</span></>}
             {st.kind === 'text' && <span className="txt">{st.body}</span>}
             <span className="when">{Date.now() - Date.parse(st.created_at) < DAY ? 'اليوم' : ago(st.created_at)}</span>
           </button>

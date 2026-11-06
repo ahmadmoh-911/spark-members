@@ -60,10 +60,10 @@ export default function Students() {
   const [chip, setChip] = useState(null); // { kind: 'course' | 'spec', value }
   const bar = useRef(null);
   useEffect(() => {
-    supabase.rpc('public_members').then(({ data, error }) => {
+    supabase.rpc('public_members', undefined, { get: true }).then(({ data, error }) => {
       if (error) setErr(friendlyError(error)); else setRows(shuffleForNow(data));
     });
-    supabase.rpc('home_stats').then(({ data }) => setStats(data?.[0] || null));
+    supabase.rpc('home_stats', undefined, { get: true }).then(({ data }) => setStats(data?.[0] || null));
   }, []);
   // the search/filter bar tucks away while scrolling down and comes back on the way up
   useEffect(() => {

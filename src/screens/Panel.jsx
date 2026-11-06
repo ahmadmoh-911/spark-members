@@ -6,6 +6,7 @@ import { Sheet, Toast } from '../sheet.jsx';
 import { courseStatus, coverStyle } from './Courses.jsx';
 import { Requests } from './Join.jsx';
 import Certificate from '../Certificate.jsx';
+import { Insights, Errors } from './PanelExtra.jsx';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TIER = { silver: 'فضي', gold: 'ذهبي', diamond: 'ماسي' };
@@ -34,15 +35,19 @@ export default function Panel() {
           <button className="kpi press" style={{ '--c': 'var(--green)' }} onClick={() => setTab('students')}><b><CountUp to={sum.students} /></b><span>طالب مسجّل</span></button>
         </div>
       )}
-      {isAdmin && !course && (
+      {!course && (
         <div className="seg ptabs" role="tablist">
           <button role="tab" aria-checked={tab === 'courses'} onClick={() => setTab('courses')}>الدورات</button>
-          <button role="tab" aria-checked={tab === 'requests'} onClick={() => setTab('requests')}>الطلبات{reqCount > 0 && <span className="badge">{reqCount}</span>}</button>
-          <button role="tab" aria-checked={tab === 'students'} onClick={() => setTab('students')}>الطلاب</button>
-          <button role="tab" aria-checked={tab === 'staff'} onClick={() => setTab('staff')}>الطاقم</button>
+          <button role="tab" aria-checked={tab === 'insights'} onClick={() => setTab('insights')}>الإحصائيات</button>
+          {isAdmin && <button role="tab" aria-checked={tab === 'requests'} onClick={() => setTab('requests')}>الطلبات{reqCount > 0 && <span className="badge">{reqCount}</span>}</button>}
+          {isAdmin && <button role="tab" aria-checked={tab === 'students'} onClick={() => setTab('students')}>الطلاب</button>}
+          {isAdmin && <button role="tab" aria-checked={tab === 'staff'} onClick={() => setTab('staff')}>الطاقم</button>}
+          {isAdmin && <button role="tab" aria-checked={tab === 'errors'} onClick={() => setTab('errors')}>الأخطاء</button>}
         </div>
       )}
       {course ? <CourseManage c={course} onBack={() => setCourse(null)} toast={setMsg} />
+        : tab === 'insights' ? <Insights />
+        : tab === 'errors' && isAdmin ? <Errors />
         : tab === 'staff' && isAdmin ? <Staff me={user.email} toast={setMsg} />
         : tab === 'requests' && isAdmin ? <Requests toast={setMsg} onCount={setReqCount} />
         : tab === 'students' && isAdmin ? <AllStudents toast={setMsg} />

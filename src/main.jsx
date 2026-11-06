@@ -4,6 +4,11 @@ import './styles.css';
 import App from './App.jsx';
 import { AuthProvider } from './lib/auth.jsx';
 import { installPressEffects } from './ui.jsx';
+import { ErrorBoundary, installMonitor } from './lib/monitor.js';
+import { installOutbox } from './lib/outbox.js';
+
+installMonitor();
+installOutbox();
 
 installPressEffects();
 
@@ -28,5 +33,5 @@ registerSW({
   },
 });
 createRoot(document.getElementById('root')).render(
-  <AuthProvider><App /></AuthProvider>
+  <ErrorBoundary><AuthProvider><App /></AuthProvider></ErrorBoundary>
 );

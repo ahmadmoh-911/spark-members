@@ -16,7 +16,7 @@ export default function Course({ id }) {
   const [err, setErr] = useState('');
   const heroRef = useRef(null), artRef = useRef(null), miniRef = useRef(null);
   useEffect(() => {
-    Promise.all([supabase.rpc('public_courses'), supabase.rpc('course_roster', { p_course: Number(id) })])
+    Promise.all([supabase.rpc('public_courses', undefined, { get: true }), supabase.rpc('course_roster', { p_course: Number(id) }, { get: true })])
       .then(([a, b]) => {
         if (a.error || b.error) { setErr(friendlyError(a.error || b.error)); return; }
         setC(a.data.find((x) => String(x.id) === String(id)) || false);
