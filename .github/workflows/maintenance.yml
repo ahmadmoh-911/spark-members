@@ -12,6 +12,10 @@ on:
         description: "Take a backup now"
         type: boolean
         default: true
+      show:
+        description: "Print the (encrypted) file in the log, for a restore test"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,6 +40,7 @@ jobs:
           curl -fsS --retry 3 "$FN?job=backup" -o "$name.enc.json"
           python3 -c "import json,sys; b=json.load(open('$name.enc.json')); assert b.get('alg') and len(b['data'])>100, b"
           ls -la "$name.enc.json"
+          if [ "${{ inputs.show }}" = "true" ]; then echo "::group::ciphertext"; cat "$name.enc.json"; echo; echo "::endgroup::"; fi
           echo "name=$name" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: steps.backup.outputs.name
